@@ -1,0 +1,203 @@
+// This schema mirrors supabase/migrations/0001-0009 exactly. The SQL migrations are the
+// source of truth for the database (tables, RLS, triggers, functions) — this file gives
+// the app a typed Prisma Client on top of that same schema. After any migration change,
+// re-sync with: npx prisma db pull && npx prisma generate.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id         String    @id @db.Uuid
+  fullName   String    @map("full_name")
+  phone      String?
+  avatarUrl  String?   @map("avatar_url")
+  locationId String?   @map("location_id") @db.Uuid
+  status     String    @default("active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy  String?   @map("created_by") @db.Uuid
+  updatedBy  String?   @map("updated_by") @db.Uuid
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy  String?   @map("deleted_by") @db.Uuid
+
+  location Location? @relation(fields: [locationId], references: [id])
+
+  userRoles     UserRole[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("profiles")
+}
+
+model Role {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique
+  description String?
+  isSystem    Boolean   @default(false) @map("is_system")
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  module      String
+  action      String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Location {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  address   String?
+  city      String    @default("Kinshasa")
+  country   String    @default("Democratic Republic of Congo")
+  phone     String?
+  status    String    @default("active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy String?   @map("deleted_by") @db.Uuid
+
+  profiles Profile[]
+
+  @@map("locations")
+}
+
+model CompanyProfile {
+  id               String   @id @default(uuid()) @db.Uuid
+  singleton        Boolean  @default(true)
+  legalName        String   @default("LED Zone") @map("legal_name")
+  displayName       String  @default("LED Zone") @map("display_name")
+  address          String?
+  city             String   @default("Kinshasa")
+  country          String   @default("Democratic Republic of Congo")
+  phone            String?
+  email            String?
+  logoUrl          String?  @map("logo_url")
+  defaultCurrency  String   @default("USD") @map("default_currency")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  updatedBy        String?  @map("updated_by") @db.Uuid
+
+  currency Currency @relation(fields: [defaultCurrency], references: [code])
+
+  @@map("company_profile")
+}
+
+model Currency {
+  code          String   @id
+  name          String
+  symbol        String
+  decimalPlaces Int      @default(2) @map("decimal_places") @db.SmallInt
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  updatedBy     String?  @map("updated_by") @db.Uuid
+
+  companyProfiles CompanyProfile[]
+  baseRates       ExchangeRate[]   @relation("BaseCurrency")
+  quoteRates      ExchangeRate[]   @relation("QuoteCurrency")
+
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id             String    @id @default(uuid()) @db.Uuid
+  baseCurrency   String    @map("base_currency")
+  quoteCurrency  String    @map("quote_currency")
+  rate           Decimal   @db.Decimal(18, 6)
+  rateDate       DateTime  @default(now()) @map("rate_date") @db.Date
+  source         String    @default("manual")
+  note           String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdBy      String?   @map("created_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+
+  base  Currency @relation("BaseCurrency", fields: [baseCurrency], references: [code])
+  quote Currency @relation("QuoteCurrency", fields: [quoteCurrency], references: [code])
+
+  @@map("exchange_rates")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  changes    Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  actor Profile? @relation(fields: [actorId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  title     String
+  body      String?
+  type      String    @default("info")
+  linkUrl   String?   @map("link_url")
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

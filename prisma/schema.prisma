@@ -111,6 +111,7 @@ model Location {
 
   profiles         Profile[]
   storageLocations StorageLocation[]
+  warehouses       Warehouse[]
 
   @@map("locations")
 }
@@ -305,19 +306,21 @@ model Supplier {
 }
 
 model StorageLocation {
-  id         String    @id @default(uuid()) @db.Uuid
-  locationId String    @map("location_id") @db.Uuid
-  name       String
-  code       String?
-  status     String    @default("active")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz
-  createdBy  String?   @map("created_by") @db.Uuid
-  updatedBy  String?   @map("updated_by") @db.Uuid
-  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
-  deletedBy  String?   @map("deleted_by") @db.Uuid
+  id                  String    @id @default(uuid()) @db.Uuid
+  locationId          String    @map("location_id") @db.Uuid
+  name                String
+  code                String?
+  warehouseLocationId String?   @map("warehouse_location_id") @db.Uuid
+  status              String    @default("active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy           String?   @map("created_by") @db.Uuid
+  updatedBy           String?   @map("updated_by") @db.Uuid
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy           String?   @map("deleted_by") @db.Uuid
 
-  location Location @relation(fields: [locationId], references: [id])
+  location          Location           @relation(fields: [locationId], references: [id])
+  warehouseLocation WarehouseLocation? @relation(fields: [warehouseLocationId], references: [id])
 
   items                 EquipmentItem[]
   lostReports           EquipmentLostReport[]
@@ -375,6 +378,12 @@ model EquipmentModel {
   items                 EquipmentItem[]
   consumableStockLevels ConsumableStockLevel[]
   consumableStockMoves  ConsumableStockMovement[]
+
+  warehouseTransferLines   WarehouseTransferLine[]
+  warehouseReceivingLines  WarehouseReceivingLine[]
+  warehouseDispatchLines   WarehouseDispatchLine[]
+  warehousePickListLines   WarehousePickListLine[]
+  warehouseCycleCountLines WarehouseCycleCountLine[]
 
   @@map("equipment_models")
 }
@@ -435,6 +444,13 @@ model EquipmentItem {
   movements            EquipmentItemMovement[]
   attachments          EquipmentItemAttachment[]
 
+  warehouseTransferLines   WarehouseTransferLine[]
+  warehouseReceivingLines  WarehouseReceivingLine[]
+  warehouseDispatchLines   WarehouseDispatchLine[]
+  warehousePickListLines   WarehousePickListLine[]
+  warehouseCycleCountLines WarehouseCycleCountLine[]
+  warehouseReservations    WarehouseReservation[]
+
   @@map("equipment_items")
 }
 
@@ -463,6 +479,8 @@ model EquipmentPurchase {
 
   items      EquipmentItem[]
   warranties EquipmentItemWarranty[]
+
+  warehouseReceivingRecords WarehouseReceivingRecord[]
 
   @@map("equipment_purchases")
 }
@@ -606,6 +624,8 @@ model EquipmentDamageReport {
   currency           Currency?                    @relation(fields: [currencyCode], references: [code])
   maintenanceRecords EquipmentMaintenanceRecord[]
 
+  warehouseReceivingLines WarehouseReceivingLine[]
+
   @@map("equipment_damage_reports")
 }
 
@@ -674,19 +694,26 @@ model EquipmentItemScan {
 }
 
 model EquipmentItemMovement {
-  id                    String   @id @default(uuid()) @db.Uuid
-  itemId                String   @map("item_id") @db.Uuid
-  fromStorageLocationId String?  @map("from_storage_location_id") @db.Uuid
-  toStorageLocationId   String   @map("to_storage_location_id") @db.Uuid
-  movedAt               DateTime @default(now()) @map("moved_at") @db.Timestamptz
-  movedBy               String?  @map("moved_by") @db.Uuid
-  movementType          String   @map("movement_type")
-  referenceNote         String?  @map("reference_note")
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                    String    @id @default(uuid()) @db.Uuid
+  itemId                String    @map("item_id") @db.Uuid
+  fromStorageLocationId String?   @map("from_storage_location_id") @db.Uuid
+  toStorageLocationId   String    @map("to_storage_location_id") @db.Uuid
+  movedAt               DateTime  @default(now()) @map("moved_at") @db.Timestamptz
+  movedBy               String?   @map("moved_by") @db.Uuid
+  movementType          String    @map("movement_type")
+  referenceNote         String?   @map("reference_note")
+  reason                String?
+  warehouseTransferId   String?   @map("warehouse_transfer_id") @db.Uuid
+  movementBatchId       String?   @map("movement_batch_id") @db.Uuid
+  requiresApproval      Boolean   @default(false) @map("requires_approval")
+  approvedBy            String?   @map("approved_by") @db.Uuid
+  approvedAt            DateTime? @map("approved_at") @db.Timestamptz
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
-  item         EquipmentItem    @relation(fields: [itemId], references: [id])
-  fromLocation StorageLocation? @relation("MovementFromLocation", fields: [fromStorageLocationId], references: [id])
-  toLocation   StorageLocation  @relation("MovementToLocation", fields: [toStorageLocationId], references: [id])
+  item              EquipmentItem      @relation(fields: [itemId], references: [id])
+  fromLocation      StorageLocation?   @relation("MovementFromLocation", fields: [fromStorageLocationId], references: [id])
+  toLocation        StorageLocation    @relation("MovementToLocation", fields: [toStorageLocationId], references: [id])
+  warehouseTransfer WarehouseTransfer? @relation(fields: [warehouseTransferId], references: [id])
 
   @@map("equipment_item_movements")
 }
@@ -745,4 +772,352 @@ model ConsumableStockMovement {
   storageLocation StorageLocation @relation(fields: [storageLocationId], references: [id])
 
   @@map("consumable_stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Module 3: Warehouse Management (supabase/migrations/0027-0042)
+//
+// The reporting views (warehouse_location_occupancy, warehouse_capacity_summary) are
+// intentionally not modeled here — this project doesn't use Prisma's `views` preview
+// feature, and every read in the app queries Supabase directly (see any Server Component
+// page.tsx), so a typed Prisma view isn't needed the way the typed Prisma Client is for
+// service-layer writes.
+// ---------------------------------------------------------------------------
+
+model Warehouse {
+  id               String    @id @default(uuid()) @db.Uuid
+  locationId       String?   @map("location_id") @db.Uuid
+  name             String
+  code             String
+  description      String?
+  warehouseType    String    @default("main") @map("warehouse_type")
+  address          String?
+  gpsLat           Decimal?  @map("gps_lat") @db.Decimal(9, 6)
+  gpsLng           Decimal?  @map("gps_lng") @db.Decimal(9, 6)
+  managerId        String?   @map("manager_id") @db.Uuid
+  contactPhone     String?   @map("contact_phone")
+  contactEmail     String?   @map("contact_email")
+  capacityVolumeM3 Decimal?  @map("capacity_volume_m3") @db.Decimal(12, 2)
+  capacityWeightKg Decimal?  @map("capacity_weight_kg") @db.Decimal(12, 2)
+  isDefault        Boolean   @default(false) @map("is_default")
+  isActive         Boolean   @default(true) @map("is_active")
+  status           String    @default("active")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy        String?   @map("created_by") @db.Uuid
+  updatedBy        String?   @map("updated_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy        String?   @map("deleted_by") @db.Uuid
+
+  location Location? @relation(fields: [locationId], references: [id])
+
+  locations        WarehouseLocation[]
+  transfersFrom    WarehouseTransfer[]        @relation("TransferFromWarehouse")
+  transfersTo      WarehouseTransfer[]        @relation("TransferToWarehouse")
+  receivingRecords WarehouseReceivingRecord[]
+  dispatchRecords  WarehouseDispatchRecord[]
+  pickLists        WarehousePickList[]
+  cycleCounts      WarehouseCycleCount[]
+
+  @@map("warehouses")
+}
+
+model WarehouseLocation {
+  id               String    @id @default(uuid()) @db.Uuid
+  warehouseId      String    @map("warehouse_id") @db.Uuid
+  parentId         String?   @map("parent_id") @db.Uuid
+  nodeType         String    @map("node_type")
+  locationCategory String?   @map("location_category")
+  code             String
+  fullCode         String?   @map("full_code")
+  name             String?
+  capacityUnits    Decimal?  @map("capacity_units") @db.Decimal(12, 2)
+  weightLimitKg    Decimal?  @map("weight_limit_kg") @db.Decimal(12, 2)
+  lengthCm         Decimal?  @map("length_cm") @db.Decimal(10, 2)
+  widthCm          Decimal?  @map("width_cm") @db.Decimal(10, 2)
+  heightCm         Decimal?  @map("height_cm") @db.Decimal(10, 2)
+  isPlaceable      Boolean   @default(false) @map("is_placeable")
+  status           String    @default("active")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy        String?   @map("created_by") @db.Uuid
+  updatedBy        String?   @map("updated_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy        String?   @map("deleted_by") @db.Uuid
+
+  warehouse Warehouse           @relation(fields: [warehouseId], references: [id])
+  parent    WarehouseLocation?  @relation("WarehouseLocationHierarchy", fields: [parentId], references: [id])
+  children  WarehouseLocation[] @relation("WarehouseLocationHierarchy")
+
+  codes            WarehouseLocationCode[]
+  storageLocations StorageLocation[]
+  transfersFrom    WarehouseTransfer[]      @relation("TransferFromLocation")
+  transfersTo      WarehouseTransfer[]      @relation("TransferToLocation")
+  receivingLines   WarehouseReceivingLine[]
+  dispatchLines    WarehouseDispatchLine[]
+  cycleCounts      WarehouseCycleCount[]
+  reservations     WarehouseReservation[]
+
+  @@map("warehouse_locations")
+}
+
+model WarehouseLocationCode {
+  id                  String    @id @default(uuid()) @db.Uuid
+  warehouseLocationId String    @map("warehouse_location_id") @db.Uuid
+  codeType            String    @map("code_type")
+  codeValue           String    @unique @map("code_value")
+  imageUrl            String?   @map("image_url")
+  isActive            Boolean   @default(true) @map("is_active")
+  generatedAt         DateTime  @default(now()) @map("generated_at") @db.Timestamptz
+  supersededAt        DateTime? @map("superseded_at") @db.Timestamptz
+  createdBy           String?   @map("created_by") @db.Uuid
+
+  warehouseLocation WarehouseLocation @relation(fields: [warehouseLocationId], references: [id])
+
+  @@map("warehouse_location_codes")
+}
+
+model WarehouseTransfer {
+  id              String    @id @default(uuid()) @db.Uuid
+  fromWarehouseId String    @map("from_warehouse_id") @db.Uuid
+  toWarehouseId   String    @map("to_warehouse_id") @db.Uuid
+  fromLocationId  String?   @map("from_location_id") @db.Uuid
+  toLocationId    String?   @map("to_location_id") @db.Uuid
+  status          String    @default("pending")
+  requestedBy     String?   @map("requested_by") @db.Uuid
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  requestedAt     DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+
+  fromWarehouse Warehouse          @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse          @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+  fromLocation  WarehouseLocation? @relation("TransferFromLocation", fields: [fromLocationId], references: [id])
+  toLocation    WarehouseLocation? @relation("TransferToLocation", fields: [toLocationId], references: [id])
+
+  lines     WarehouseTransferLine[]
+  movements EquipmentItemMovement[]
+
+  @@map("warehouse_transfers")
+}
+
+model WarehouseTransferLine {
+  id         String   @id @default(uuid()) @db.Uuid
+  transferId String   @map("transfer_id") @db.Uuid
+  itemId     String?  @map("item_id") @db.Uuid
+  modelId    String?  @map("model_id") @db.Uuid
+  quantity   Decimal? @db.Decimal(14, 2)
+  status     String   @default("pending")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  transfer WarehouseTransfer @relation(fields: [transferId], references: [id])
+  item     EquipmentItem?    @relation(fields: [itemId], references: [id])
+  model    EquipmentModel?   @relation(fields: [modelId], references: [id])
+
+  @@map("warehouse_transfer_lines")
+}
+
+model WarehouseReceivingRecord {
+  id            String    @id @default(uuid()) @db.Uuid
+  warehouseId   String    @map("warehouse_id") @db.Uuid
+  sourceType    String    @map("source_type")
+  purchaseId    String?   @map("purchase_id") @db.Uuid
+  referenceNote String?   @map("reference_note")
+  receivedBy    String?   @map("received_by") @db.Uuid
+  receivedAt    DateTime  @default(now()) @map("received_at") @db.Timestamptz
+  status        String    @default("pending")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy     String?   @map("created_by") @db.Uuid
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy     String?   @map("deleted_by") @db.Uuid
+
+  warehouse Warehouse          @relation(fields: [warehouseId], references: [id])
+  purchase  EquipmentPurchase? @relation(fields: [purchaseId], references: [id])
+
+  lines WarehouseReceivingLine[]
+
+  @@map("warehouse_receiving_records")
+}
+
+model WarehouseReceivingLine {
+  id                             String   @id @default(uuid()) @db.Uuid
+  receivingId                    String   @map("receiving_id") @db.Uuid
+  itemId                         String?  @map("item_id") @db.Uuid
+  modelId                        String?  @map("model_id") @db.Uuid
+  quantity                       Decimal? @db.Decimal(14, 2)
+  conditionOnArrival             String?  @map("condition_on_arrival")
+  damageReportId                 String?  @map("damage_report_id") @db.Uuid
+  destinationWarehouseLocationId String?  @map("destination_warehouse_location_id") @db.Uuid
+  placed                         Boolean  @default(false)
+  createdAt                      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  receiving               WarehouseReceivingRecord @relation(fields: [receivingId], references: [id])
+  item                    EquipmentItem?           @relation(fields: [itemId], references: [id])
+  model                   EquipmentModel?          @relation(fields: [modelId], references: [id])
+  damageReport            EquipmentDamageReport?   @relation(fields: [damageReportId], references: [id])
+  destinationWarehouseLoc WarehouseLocation?       @relation(fields: [destinationWarehouseLocationId], references: [id])
+
+  @@map("warehouse_receiving_lines")
+}
+
+model WarehouseDispatchRecord {
+  id                   String    @id @default(uuid()) @db.Uuid
+  warehouseId          String    @map("warehouse_id") @db.Uuid
+  destinationType      String    @map("destination_type")
+  destinationReference String?   @map("destination_reference")
+  dispatchedBy         String?   @map("dispatched_by") @db.Uuid
+  dispatchedAt         DateTime? @map("dispatched_at") @db.Timestamptz
+  signatureUrl         String?   @map("signature_url")
+  status               String    @default("pending")
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy            String?   @map("created_by") @db.Uuid
+  updatedBy            String?   @map("updated_by") @db.Uuid
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy            String?   @map("deleted_by") @db.Uuid
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  lines WarehouseDispatchLine[]
+
+  @@map("warehouse_dispatch_records")
+}
+
+model WarehouseDispatchLine {
+  id                        String   @id @default(uuid()) @db.Uuid
+  dispatchId                String   @map("dispatch_id") @db.Uuid
+  itemId                    String?  @map("item_id") @db.Uuid
+  modelId                   String?  @map("model_id") @db.Uuid
+  quantity                  Decimal? @db.Decimal(14, 2)
+  sourceWarehouseLocationId String?  @map("source_warehouse_location_id") @db.Uuid
+  dispatched                Boolean  @default(false)
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  dispatch           WarehouseDispatchRecord @relation(fields: [dispatchId], references: [id])
+  item               EquipmentItem?          @relation(fields: [itemId], references: [id])
+  model              EquipmentModel?         @relation(fields: [modelId], references: [id])
+  sourceWarehouseLoc WarehouseLocation?      @relation(fields: [sourceWarehouseLocationId], references: [id])
+
+  @@map("warehouse_dispatch_lines")
+}
+
+model WarehousePickList {
+  id          String    @id @default(uuid()) @db.Uuid
+  warehouseId String    @map("warehouse_id") @db.Uuid
+  method      String    @default("manual")
+  status      String    @default("pending")
+  assignedTo  String?   @map("assigned_to") @db.Uuid
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  lines WarehousePickListLine[]
+
+  @@map("warehouse_pick_lists")
+}
+
+model WarehousePickListLine {
+  id         String    @id @default(uuid()) @db.Uuid
+  pickListId String    @map("pick_list_id") @db.Uuid
+  itemId     String?   @map("item_id") @db.Uuid
+  modelId    String?   @map("model_id") @db.Uuid
+  quantity   Decimal?  @db.Decimal(14, 2)
+  picked     Boolean   @default(false)
+  pickedAt   DateTime? @map("picked_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  pickList WarehousePickList @relation(fields: [pickListId], references: [id])
+  item     EquipmentItem?    @relation(fields: [itemId], references: [id])
+  model    EquipmentModel?   @relation(fields: [modelId], references: [id])
+
+  @@map("warehouse_pick_list_lines")
+}
+
+model WarehouseCycleCount {
+  id              String    @id @default(uuid()) @db.Uuid
+  warehouseId     String    @map("warehouse_id") @db.Uuid
+  scopeType       String    @map("scope_type")
+  scopeLocationId String?   @map("scope_location_id") @db.Uuid
+  status          String    @default("scheduled")
+  scheduledDate   DateTime? @map("scheduled_date") @db.Date
+  startedAt       DateTime? @map("started_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  createdBy       String?   @map("created_by") @db.Uuid
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
+  scopeLocation WarehouseLocation? @relation(fields: [scopeLocationId], references: [id])
+
+  lines WarehouseCycleCountLine[]
+
+  @@map("warehouse_cycle_counts")
+}
+
+model WarehouseCycleCountLine {
+  id                String   @id @default(uuid()) @db.Uuid
+  cycleCountId      String   @map("cycle_count_id") @db.Uuid
+  itemId            String?  @map("item_id") @db.Uuid
+  modelId           String?  @map("model_id") @db.Uuid
+  expectedQty       Decimal  @map("expected_qty") @db.Decimal(14, 2)
+  countedQty        Decimal? @map("counted_qty") @db.Decimal(14, 2)
+  variance          Decimal? @db.Decimal(14, 2)
+  adjustmentApplied Boolean  @default(false) @map("adjustment_applied")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  cycleCount WarehouseCycleCount @relation(fields: [cycleCountId], references: [id])
+  item       EquipmentItem?      @relation(fields: [itemId], references: [id])
+  model      EquipmentModel?     @relation(fields: [modelId], references: [id])
+
+  @@map("warehouse_cycle_count_lines")
+}
+
+model WarehouseReservation {
+  id                  String    @id @default(uuid()) @db.Uuid
+  warehouseLocationId String?   @map("warehouse_location_id") @db.Uuid
+  itemId              String?   @map("item_id") @db.Uuid
+  reservedForType     String    @map("reserved_for_type")
+  reservedBy          String?   @map("reserved_by") @db.Uuid
+  reservedAt          DateTime  @default(now()) @map("reserved_at") @db.Timestamptz
+  expiresAt           DateTime  @map("expires_at") @db.Timestamptz
+  releasedAt          DateTime? @map("released_at") @db.Timestamptz
+  referenceNote       String?   @map("reference_note")
+
+  warehouseLocation WarehouseLocation? @relation(fields: [warehouseLocationId], references: [id])
+  item              EquipmentItem?     @relation(fields: [itemId], references: [id])
+
+  @@map("warehouse_reservations")
+}
+
+model WarehouseDocument {
+  id                String    @id @default(uuid()) @db.Uuid
+  relatedEntityType String    @map("related_entity_type")
+  relatedEntityId   String    @map("related_entity_id") @db.Uuid
+  documentType      String    @map("document_type")
+  fileName          String    @map("file_name")
+  storagePath       String    @unique @map("storage_path")
+  mimeType          String?   @map("mime_type")
+  fileSizeBytes     BigInt?   @map("file_size_bytes")
+  uploadedBy        String?   @map("uploaded_by") @db.Uuid
+  description       String?
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy         String?   @map("created_by") @db.Uuid
+  updatedBy         String?   @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+
+  @@map("warehouse_documents")
 }

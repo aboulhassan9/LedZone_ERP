@@ -109,26 +109,27 @@ model Location {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz
   deletedBy String?   @map("deleted_by") @db.Uuid
 
-  profiles Profile[]
+  profiles         Profile[]
+  storageLocations StorageLocation[]
 
   @@map("locations")
 }
 
 model CompanyProfile {
-  id               String   @id @default(uuid()) @db.Uuid
-  singleton        Boolean  @default(true)
-  legalName        String   @default("LED Zone") @map("legal_name")
-  displayName       String  @default("LED Zone") @map("display_name")
-  address          String?
-  city             String   @default("Kinshasa")
-  country          String   @default("Democratic Republic of Congo")
-  phone            String?
-  email            String?
-  logoUrl          String?  @map("logo_url")
-  defaultCurrency  String   @default("USD") @map("default_currency")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
-  updatedBy        String?  @map("updated_by") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  singleton       Boolean  @default(true)
+  legalName       String   @default("LED Zone") @map("legal_name")
+  displayName     String   @default("LED Zone") @map("display_name")
+  address         String?
+  city            String   @default("Kinshasa")
+  country         String   @default("Democratic Republic of Congo")
+  phone           String?
+  email           String?
+  logoUrl         String?  @map("logo_url")
+  defaultCurrency String   @default("USD") @map("default_currency")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  updatedBy       String?  @map("updated_by") @db.Uuid
 
   currency Currency @relation(fields: [defaultCurrency], references: [code])
 
@@ -149,24 +150,34 @@ model Currency {
   baseRates       ExchangeRate[]   @relation("BaseCurrency")
   quoteRates      ExchangeRate[]   @relation("QuoteCurrency")
 
+  suppliers                    Supplier[]
+  purchases                    EquipmentPurchase[]
+  depreciationPoliciesPurchase EquipmentDepreciationPolicy[] @relation("DepreciationPurchaseCurrency")
+  depreciationPoliciesSalvage  EquipmentDepreciationPolicy[] @relation("DepreciationSalvageCurrency")
+  itemValuations               EquipmentItemValuation[]
+  maintenanceRecords           EquipmentMaintenanceRecord[]
+  damageReports                EquipmentDamageReport[]
+
   @@map("currencies")
 }
 
 model ExchangeRate {
-  id             String    @id @default(uuid()) @db.Uuid
-  baseCurrency   String    @map("base_currency")
-  quoteCurrency  String    @map("quote_currency")
-  rate           Decimal   @db.Decimal(18, 6)
-  rateDate       DateTime  @default(now()) @map("rate_date") @db.Date
-  source         String    @default("manual")
-  note           String?
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  createdBy      String?   @map("created_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
-  deletedBy      String?   @map("deleted_by") @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  baseCurrency  String    @map("base_currency")
+  quoteCurrency String    @map("quote_currency")
+  rate          Decimal   @db.Decimal(18, 6)
+  rateDate      DateTime  @default(now()) @map("rate_date") @db.Date
+  source        String    @default("manual")
+  note          String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdBy     String?   @map("created_by") @db.Uuid
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy     String?   @map("deleted_by") @db.Uuid
 
   base  Currency @relation("BaseCurrency", fields: [baseCurrency], references: [code])
   quote Currency @relation("QuoteCurrency", fields: [quoteCurrency], references: [code])
+
+  purchases EquipmentPurchase[]
 
   @@map("exchange_rates")
 }
@@ -200,4 +211,538 @@ model Notification {
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Module 2: Inventory Foundation (supabase/migrations/0012-0025)
+// ---------------------------------------------------------------------------
+
+model EquipmentCategory {
+  id          String    @id @default(uuid()) @db.Uuid
+  parentId    String?   @map("parent_id") @db.Uuid
+  name        String
+  description String?
+  icon        String?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+
+  parent   EquipmentCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children EquipmentCategory[] @relation("CategoryHierarchy")
+
+  models            EquipmentModel[]
+  specificationDefs EquipmentSpecificationDefinition[]
+  assetTagFormats   EquipmentAssetTagFormat[]
+
+  @@map("equipment_categories")
+}
+
+model Manufacturer {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  country      String?
+  website      String?
+  supportEmail String?   @map("support_email")
+  supportPhone String?   @map("support_phone")
+  status       String    @default("active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+
+  brands Brand[]
+  models EquipmentModel[]
+
+  @@map("manufacturers")
+}
+
+model Brand {
+  id             String    @id @default(uuid()) @db.Uuid
+  manufacturerId String?   @map("manufacturer_id") @db.Uuid
+  name           String
+  website        String?
+  status         String    @default("active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+
+  manufacturer Manufacturer?    @relation(fields: [manufacturerId], references: [id])
+  models       EquipmentModel[]
+
+  @@map("brands")
+}
+
+model Supplier {
+  id                String    @id @default(uuid()) @db.Uuid
+  name              String
+  contactName       String?   @map("contact_name")
+  email             String?
+  phone             String?
+  address           String?
+  country           String?
+  preferredCurrency String?   @map("preferred_currency")
+  status            String    @default("active")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy         String?   @map("created_by") @db.Uuid
+  updatedBy         String?   @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+
+  currency  Currency?           @relation(fields: [preferredCurrency], references: [code])
+  purchases EquipmentPurchase[]
+
+  @@map("suppliers")
+}
+
+model StorageLocation {
+  id         String    @id @default(uuid()) @db.Uuid
+  locationId String    @map("location_id") @db.Uuid
+  name       String
+  code       String?
+  status     String    @default("active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy  String?   @map("created_by") @db.Uuid
+  updatedBy  String?   @map("updated_by") @db.Uuid
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy  String?   @map("deleted_by") @db.Uuid
+
+  location Location @relation(fields: [locationId], references: [id])
+
+  items                 EquipmentItem[]
+  lostReports           EquipmentLostReport[]
+  scans                 EquipmentItemScan[]
+  movementsFrom         EquipmentItemMovement[]   @relation("MovementFromLocation")
+  movementsTo           EquipmentItemMovement[]   @relation("MovementToLocation")
+  consumableStockLevels ConsumableStockLevel[]
+  consumableStockMoves  ConsumableStockMovement[]
+
+  @@map("storage_locations")
+}
+
+model EquipmentAssetTagFormat {
+  id             String   @id @default(uuid()) @db.Uuid
+  categoryId     String?  @map("category_id") @db.Uuid
+  prefix         String
+  separator      String   @default("-")
+  sequenceLength Int      @default(6) @map("sequence_length") @db.SmallInt
+  nextSequence   BigInt   @default(1) @map("next_sequence")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy      String?  @map("created_by") @db.Uuid
+  updatedBy      String?  @map("updated_by") @db.Uuid
+
+  category EquipmentCategory? @relation(fields: [categoryId], references: [id])
+
+  @@map("equipment_asset_tag_formats")
+}
+
+model EquipmentModel {
+  id                     String    @id @default(uuid()) @db.Uuid
+  categoryId             String    @map("category_id") @db.Uuid
+  manufacturerId         String    @map("manufacturer_id") @db.Uuid
+  brandId                String?   @map("brand_id") @db.Uuid
+  modelName              String    @map("model_name")
+  modelNumber            String?   @map("model_number")
+  description            String?
+  trackingType           String    @default("individual") @map("tracking_type")
+  specifications         Json      @default("{}")
+  defaultWarrantyMonths  Int?      @map("default_warranty_months")
+  expectedLifespanMonths Int?      @map("expected_lifespan_months")
+  imageUrl               String?   @map("image_url")
+  status                 String    @default("active")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy              String?   @map("created_by") @db.Uuid
+  updatedBy              String?   @map("updated_by") @db.Uuid
+  deletedAt              DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy              String?   @map("deleted_by") @db.Uuid
+
+  category     EquipmentCategory @relation(fields: [categoryId], references: [id])
+  manufacturer Manufacturer      @relation(fields: [manufacturerId], references: [id])
+  brand        Brand?            @relation(fields: [brandId], references: [id])
+
+  items                 EquipmentItem[]
+  consumableStockLevels ConsumableStockLevel[]
+  consumableStockMoves  ConsumableStockMovement[]
+
+  @@map("equipment_models")
+}
+
+model EquipmentSpecificationDefinition {
+  id           String    @id @default(uuid()) @db.Uuid
+  categoryId   String    @map("category_id") @db.Uuid
+  specKey      String    @map("spec_key")
+  label        String
+  dataType     String    @default("text") @map("data_type")
+  unit         String?
+  displayOrder Int       @default(0) @map("display_order")
+  isRequired   Boolean   @default(false) @map("is_required")
+  status       String    @default("active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+
+  category EquipmentCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([categoryId, specKey])
+  @@map("equipment_specification_definitions")
+}
+
+model EquipmentItem {
+  id                       String    @id @default(uuid()) @db.Uuid
+  modelId                  String    @map("model_id") @db.Uuid
+  assetTag                 String    @unique @map("asset_tag")
+  serialNumber             String?   @map("serial_number")
+  purchaseId               String?   @map("purchase_id") @db.Uuid
+  currentStatus            String    @default("available") @map("current_status")
+  currentCondition         String    @default("new") @map("current_condition")
+  currentStorageLocationId String?   @map("current_storage_location_id") @db.Uuid
+  notes                    String?
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy                String?   @map("created_by") @db.Uuid
+  updatedBy                String?   @map("updated_by") @db.Uuid
+  deletedAt                DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy                String?   @map("deleted_by") @db.Uuid
+
+  model                  EquipmentModel     @relation(fields: [modelId], references: [id])
+  purchase               EquipmentPurchase? @relation(fields: [purchaseId], references: [id])
+  currentStorageLocation StorageLocation?   @relation(fields: [currentStorageLocationId], references: [id])
+
+  warranties           EquipmentItemWarranty[]
+  valuations           EquipmentItemValuation[]
+  depreciationPolicy   EquipmentDepreciationPolicy?
+  maintenanceSchedules EquipmentMaintenanceSchedule[]
+  maintenanceRecords   EquipmentMaintenanceRecord[]
+  damageReports        EquipmentDamageReport[]
+  lostReports          EquipmentLostReport[]
+  codes                EquipmentItemCode[]
+  scans                EquipmentItemScan[]
+  movements            EquipmentItemMovement[]
+  attachments          EquipmentItemAttachment[]
+
+  @@map("equipment_items")
+}
+
+model EquipmentPurchase {
+  id             String    @id @default(uuid()) @db.Uuid
+  supplierId     String    @map("supplier_id") @db.Uuid
+  purchaseDate   DateTime  @default(now()) @map("purchase_date") @db.Date
+  invoiceNumber  String?   @map("invoice_number")
+  currencyCode   String    @map("currency_code")
+  exchangeRateId String?   @map("exchange_rate_id") @db.Uuid
+  subtotalAmount Decimal?  @map("subtotal_amount") @db.Decimal(14, 2)
+  taxAmount      Decimal?  @map("tax_amount") @db.Decimal(14, 2)
+  totalAmount    Decimal   @map("total_amount") @db.Decimal(14, 2)
+  status         String    @default("ordered")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+
+  supplier     Supplier      @relation(fields: [supplierId], references: [id])
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  exchangeRate ExchangeRate? @relation(fields: [exchangeRateId], references: [id])
+
+  items      EquipmentItem[]
+  warranties EquipmentItemWarranty[]
+
+  @@map("equipment_purchases")
+}
+
+model EquipmentItemWarranty {
+  id           String    @id @default(uuid()) @db.Uuid
+  itemId       String    @map("item_id") @db.Uuid
+  purchaseId   String?   @map("purchase_id") @db.Uuid
+  providerType String    @map("provider_type")
+  providerName String?   @map("provider_name")
+  warrantyType String?   @map("warranty_type")
+  startDate    DateTime  @map("start_date") @db.Date
+  endDate      DateTime  @map("end_date") @db.Date
+  terms        String?
+  claimContact String?   @map("claim_contact")
+  status       String    @default("active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+
+  item     EquipmentItem      @relation(fields: [itemId], references: [id])
+  purchase EquipmentPurchase? @relation(fields: [purchaseId], references: [id])
+
+  @@map("equipment_item_warranties")
+}
+
+model EquipmentDepreciationPolicy {
+  id               String    @id @default(uuid()) @db.Uuid
+  itemId           String    @unique @map("item_id") @db.Uuid
+  purchaseCost     Decimal   @map("purchase_cost") @db.Decimal(14, 2)
+  purchaseCurrency String    @map("purchase_currency")
+  salvageValue     Decimal   @default(0) @map("salvage_value") @db.Decimal(14, 2)
+  salvageCurrency  String    @map("salvage_currency")
+  usefulLifeMonths Int       @map("useful_life_months")
+  method           String    @default("straight_line")
+  startDate        DateTime  @default(now()) @map("start_date") @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy        String?   @map("created_by") @db.Uuid
+  updatedBy        String?   @map("updated_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy        String?   @map("deleted_by") @db.Uuid
+
+  item                EquipmentItem @relation(fields: [itemId], references: [id])
+  purchaseCurrencyRef Currency      @relation("DepreciationPurchaseCurrency", fields: [purchaseCurrency], references: [code])
+  salvageCurrencyRef  Currency      @relation("DepreciationSalvageCurrency", fields: [salvageCurrency], references: [code])
+
+  @@map("equipment_depreciation_policies")
+}
+
+model EquipmentItemValuation {
+  id           String   @id @default(uuid()) @db.Uuid
+  itemId       String   @map("item_id") @db.Uuid
+  entryDate    DateTime @default(now()) @map("entry_date") @db.Date
+  entryType    String   @map("entry_type")
+  amount       Decimal  @db.Decimal(14, 2)
+  currencyCode String   @map("currency_code")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  item     EquipmentItem @relation(fields: [itemId], references: [id])
+  currency Currency      @relation(fields: [currencyCode], references: [code])
+
+  @@map("equipment_item_valuations")
+}
+
+model EquipmentMaintenanceSchedule {
+  id                String    @id @default(uuid()) @db.Uuid
+  itemId            String    @map("item_id") @db.Uuid
+  maintenanceType   String    @map("maintenance_type")
+  intervalDays      Int       @map("interval_days")
+  lastPerformedDate DateTime? @map("last_performed_date") @db.Date
+  nextDueDate       DateTime? @map("next_due_date") @db.Date
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy         String?   @map("created_by") @db.Uuid
+  updatedBy         String?   @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+
+  item    EquipmentItem                @relation(fields: [itemId], references: [id])
+  records EquipmentMaintenanceRecord[]
+
+  @@map("equipment_maintenance_schedules")
+}
+
+model EquipmentMaintenanceRecord {
+  id                  String    @id @default(uuid()) @db.Uuid
+  itemId              String    @map("item_id") @db.Uuid
+  scheduleId          String?   @map("schedule_id") @db.Uuid
+  damageReportId      String?   @map("damage_report_id") @db.Uuid
+  performedDate       DateTime  @default(now()) @map("performed_date") @db.Date
+  performedBy         String?   @map("performed_by") @db.Uuid
+  technicianName      String?   @map("technician_name")
+  maintenanceType     String    @map("maintenance_type")
+  description         String?
+  cost                Decimal?  @db.Decimal(14, 2)
+  currencyCode        String?   @map("currency_code")
+  partsReplaced       Json?     @map("parts_replaced")
+  nextRecommendedDate DateTime? @map("next_recommended_date") @db.Date
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy           String?   @map("created_by") @db.Uuid
+  updatedBy           String?   @map("updated_by") @db.Uuid
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy           String?   @map("deleted_by") @db.Uuid
+
+  item         EquipmentItem                 @relation(fields: [itemId], references: [id])
+  schedule     EquipmentMaintenanceSchedule? @relation(fields: [scheduleId], references: [id])
+  damageReport EquipmentDamageReport?        @relation(fields: [damageReportId], references: [id])
+  currency     Currency?                     @relation(fields: [currencyCode], references: [code])
+
+  @@map("equipment_maintenance_records")
+}
+
+model EquipmentDamageReport {
+  id              String    @id @default(uuid()) @db.Uuid
+  itemId          String    @map("item_id") @db.Uuid
+  reportedBy      String?   @map("reported_by") @db.Uuid
+  reportedDate    DateTime  @default(now()) @map("reported_date") @db.Date
+  description     String
+  severity        String
+  status          String    @default("reported")
+  repairCost      Decimal?  @map("repair_cost") @db.Decimal(14, 2)
+  currencyCode    String?   @map("currency_code")
+  resolvedDate    DateTime? @map("resolved_date") @db.Date
+  resolutionNotes String?   @map("resolution_notes")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+
+  item               EquipmentItem                @relation(fields: [itemId], references: [id])
+  currency           Currency?                    @relation(fields: [currencyCode], references: [code])
+  maintenanceRecords EquipmentMaintenanceRecord[]
+
+  @@map("equipment_damage_reports")
+}
+
+model EquipmentLostReport {
+  id                  String    @id @default(uuid()) @db.Uuid
+  itemId              String    @map("item_id") @db.Uuid
+  reportedBy          String?   @map("reported_by") @db.Uuid
+  reportedDate        DateTime  @default(now()) @map("reported_date") @db.Date
+  lastKnownLocationId String?   @map("last_known_location_id") @db.Uuid
+  description         String?
+  status              String    @default("reported")
+  resolutionDate      DateTime? @map("resolution_date") @db.Date
+  resolutionNotes     String?   @map("resolution_notes")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy           String?   @map("created_by") @db.Uuid
+  updatedBy           String?   @map("updated_by") @db.Uuid
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy           String?   @map("deleted_by") @db.Uuid
+
+  item              EquipmentItem    @relation(fields: [itemId], references: [id])
+  lastKnownLocation StorageLocation? @relation(fields: [lastKnownLocationId], references: [id])
+
+  @@map("equipment_lost_reports")
+}
+
+model EquipmentItemCode {
+  id           String    @id @default(uuid()) @db.Uuid
+  itemId       String    @map("item_id") @db.Uuid
+  codeType     String    @map("code_type")
+  codeValue    String    @unique @map("code_value")
+  imageUrl     String?   @map("image_url")
+  isActive     Boolean   @default(true) @map("is_active")
+  generatedAt  DateTime  @default(now()) @map("generated_at") @db.Timestamptz
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+
+  item  EquipmentItem       @relation(fields: [itemId], references: [id])
+  scans EquipmentItemScan[]
+
+  @@map("equipment_item_codes")
+}
+
+model EquipmentItemScan {
+  id             String   @id @default(uuid()) @db.Uuid
+  itemCodeId     String   @map("item_code_id") @db.Uuid
+  itemId         String   @map("item_id") @db.Uuid
+  scannedBy      String?  @map("scanned_by") @db.Uuid
+  scannedAt      DateTime @default(now()) @map("scanned_at") @db.Timestamptz
+  scanContext    String   @default("lookup") @map("scan_context")
+  locationAtScan String?  @map("location_at_scan") @db.Uuid
+  deviceInfo     Json?    @map("device_info")
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  itemCode          EquipmentItemCode @relation(fields: [itemCodeId], references: [id])
+  item              EquipmentItem     @relation(fields: [itemId], references: [id])
+  locationAtScanRef StorageLocation?  @relation(fields: [locationAtScan], references: [id])
+
+  @@map("equipment_item_scans")
+}
+
+model EquipmentItemMovement {
+  id                    String   @id @default(uuid()) @db.Uuid
+  itemId                String   @map("item_id") @db.Uuid
+  fromStorageLocationId String?  @map("from_storage_location_id") @db.Uuid
+  toStorageLocationId   String   @map("to_storage_location_id") @db.Uuid
+  movedAt               DateTime @default(now()) @map("moved_at") @db.Timestamptz
+  movedBy               String?  @map("moved_by") @db.Uuid
+  movementType          String   @map("movement_type")
+  referenceNote         String?  @map("reference_note")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  item         EquipmentItem    @relation(fields: [itemId], references: [id])
+  fromLocation StorageLocation? @relation("MovementFromLocation", fields: [fromStorageLocationId], references: [id])
+  toLocation   StorageLocation  @relation("MovementToLocation", fields: [toStorageLocationId], references: [id])
+
+  @@map("equipment_item_movements")
+}
+
+model EquipmentItemAttachment {
+  id             String    @id @default(uuid()) @db.Uuid
+  itemId         String    @map("item_id") @db.Uuid
+  attachmentType String    @map("attachment_type")
+  fileName       String    @map("file_name")
+  storagePath    String    @unique @map("storage_path")
+  mimeType       String?   @map("mime_type")
+  fileSizeBytes  BigInt?   @map("file_size_bytes")
+  uploadedBy     String?   @map("uploaded_by") @db.Uuid
+  description    String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+
+  item EquipmentItem @relation(fields: [itemId], references: [id])
+
+  @@map("equipment_item_attachments")
+}
+
+model ConsumableStockLevel {
+  id                String   @id @default(uuid()) @db.Uuid
+  modelId           String   @map("model_id") @db.Uuid
+  storageLocationId String   @map("storage_location_id") @db.Uuid
+  quantityOnHand    Decimal  @default(0) @map("quantity_on_hand") @db.Decimal(14, 2)
+  unitOfMeasure     String   @default("pcs") @map("unit_of_measure")
+  reorderThreshold  Decimal? @map("reorder_threshold") @db.Decimal(14, 2)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  updatedBy         String?  @map("updated_by") @db.Uuid
+
+  model           EquipmentModel  @relation(fields: [modelId], references: [id])
+  storageLocation StorageLocation @relation(fields: [storageLocationId], references: [id])
+
+  @@unique([modelId, storageLocationId])
+  @@map("consumable_stock_levels")
+}
+
+model ConsumableStockMovement {
+  id                String   @id @default(uuid()) @db.Uuid
+  modelId           String   @map("model_id") @db.Uuid
+  storageLocationId String   @map("storage_location_id") @db.Uuid
+  movementType      String   @map("movement_type")
+  quantityDelta     Decimal  @map("quantity_delta") @db.Decimal(14, 2)
+  referenceNote     String?  @map("reference_note")
+  movedBy           String?  @map("moved_by") @db.Uuid
+  movedAt           DateTime @default(now()) @map("moved_at") @db.Timestamptz
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  model           EquipmentModel  @relation(fields: [modelId], references: [id])
+  storageLocation StorageLocation @relation(fields: [storageLocationId], references: [id])
+
+  @@map("consumable_stock_movements")
 }

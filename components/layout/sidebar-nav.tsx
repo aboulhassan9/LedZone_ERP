@@ -10,6 +10,15 @@ import {
   Users,
   ShieldCheck,
   ScrollText,
+  Boxes,
+  Tags,
+  Factory,
+  Truck,
+  Warehouse,
+  Layers,
+  Package,
+  ShoppingCart,
+  Droplets,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,6 +47,26 @@ const SECTIONS: NavSection[] = [
       { href: "/settings/profile", label: "Profile", icon: User },
       { href: "/settings/notifications", label: "Notifications", icon: Bell },
       { href: "/settings/files", label: "Files", icon: FolderOpen },
+    ],
+  },
+  {
+    title: "Inventory",
+    items: [
+      { href: "/inventory", label: "Dashboard", icon: LayoutDashboard, permission: "inventory.view" },
+      { href: "/inventory/items", label: "Equipment Items", icon: Boxes, permission: "inventory.view" },
+      { href: "/inventory/models", label: "Equipment Models", icon: Layers, permission: "inventory.view" },
+      { href: "/inventory/categories", label: "Categories", icon: Tags, permission: "inventory.view" },
+      { href: "/inventory/manufacturers", label: "Manufacturers", icon: Factory, permission: "inventory.view" },
+      { href: "/inventory/brands", label: "Brands", icon: Package, permission: "inventory.view" },
+      { href: "/inventory/suppliers", label: "Suppliers", icon: Truck, permission: "inventory.view" },
+      {
+        href: "/inventory/storage-locations",
+        label: "Storage Locations",
+        icon: Warehouse,
+        permission: "inventory.view",
+      },
+      { href: "/inventory/purchases", label: "Purchase Records", icon: ShoppingCart, permission: "inventory.view" },
+      { href: "/inventory/consumables", label: "Consumables", icon: Droplets, permission: "inventory.view" },
     ],
   },
   {

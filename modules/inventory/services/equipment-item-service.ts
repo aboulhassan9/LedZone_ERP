@@ -8,11 +8,15 @@ import {
   transferEquipmentItemSchema,
   checkOutEquipmentItemSchema,
   checkInEquipmentItemSchema,
+  warehouseItemMovementSchema,
+  bulkWarehouseMoveSchema,
   type CreateEquipmentItemInput,
   type UpdateEquipmentItemInput,
   type TransferEquipmentItemInput,
   type CheckOutEquipmentItemInput,
   type CheckInEquipmentItemInput,
+  type WarehouseItemMovementInput,
+  type BulkWarehouseMoveInput,
 } from "@/modules/inventory/schemas/equipment-item-schema";
 import {
   equipmentItemRepository,
@@ -159,6 +163,164 @@ async function checkInEquipmentItem(
   }
 }
 
+// --- Warehouse-triggered movement types (Module 3) ---------------------------------------
+// These still flow through this service (EquipmentLifecycleService) like every other state
+// change; only the addressing differs (a warehouse_locations node, resolved by the caller in
+// modules/warehouse/services/*.ts, instead of a storage_locations row).
+
+async function putAwayEquipmentItem(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["warehouse.pick", "warehouse.manage"]);
+  const parsed = warehouseItemMovementSchema.parse(input);
+  await requireItem(id);
+
+  try {
+    const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
+      id,
+      parsed.toWarehouseLocationId,
+      "put_away",
+      parsed.reason ?? null,
+      "available"
+    );
+    await logInventoryAudit("equipment_item.put_away", "equipment_items", id, {
+      toWarehouseLocationId: parsed.toWarehouseLocationId,
+    });
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function pickEquipmentItem(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["warehouse.pick", "warehouse.manage"]);
+  const parsed = warehouseItemMovementSchema.parse(input);
+  const item = await requireItem(id);
+
+  if (item.current_status !== "available" && item.current_status !== "reserved") {
+    throw new ConflictError(`Item is not available to pick (current status: ${item.current_status}).`);
+  }
+
+  try {
+    const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
+      id,
+      parsed.toWarehouseLocationId,
+      "pick",
+      parsed.reason ?? null,
+      null
+    );
+    await logInventoryAudit("equipment_item.picked", "equipment_items", id, {
+      toWarehouseLocationId: parsed.toWarehouseLocationId,
+    });
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function quarantineEquipmentItem(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["warehouse.location.manage", "warehouse.manage"]);
+  const parsed = warehouseItemMovementSchema.parse(input);
+  await requireItem(id);
+
+  try {
+    const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
+      id,
+      parsed.toWarehouseLocationId,
+      "quarantine",
+      parsed.reason ?? null,
+      "damaged"
+    );
+    await logInventoryAudit("equipment_item.quarantined", "equipment_items", id, {
+      toWarehouseLocationId: parsed.toWarehouseLocationId,
+      reason: parsed.reason,
+    });
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function releaseFromQuarantineEquipmentItem(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["warehouse.location.manage", "warehouse.manage"]);
+  const parsed = warehouseItemMovementSchema.parse(input);
+  await requireItem(id);
+
+  try {
+    const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
+      id,
+      parsed.toWarehouseLocationId,
+      "release",
+      parsed.reason ?? null,
+      "available"
+    );
+    await logInventoryAudit("equipment_item.released_from_quarantine", "equipment_items", id, {
+      toWarehouseLocationId: parsed.toWarehouseLocationId,
+    });
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function scrapEquipmentItem(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<EquipmentItemMovementRow> {
+  await assertPermission("warehouse.manage");
+  const parsed = warehouseItemMovementSchema.parse(input);
+  await requireItem(id);
+
+  try {
+    const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
+      id,
+      parsed.toWarehouseLocationId,
+      "scrap",
+      parsed.reason ?? null,
+      "retired"
+    );
+    await logInventoryAudit("equipment_item.scrapped", "equipment_items", id, {
+      toWarehouseLocationId: parsed.toWarehouseLocationId,
+      reason: parsed.reason,
+    });
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function bulkMoveEquipmentItems(
+  input: BulkWarehouseMoveInput
+): Promise<EquipmentItemMovementRow[]> {
+  await assertAnyPermission(["warehouse.bulk.move", "warehouse.manage"]);
+  const parsed = bulkWarehouseMoveSchema.parse(input);
+
+  try {
+    const movements = await equipmentItemRepository.recordBulkMoveViaTransaction(
+      parsed.itemIds,
+      parsed.toWarehouseLocationId,
+      parsed.reason ?? null
+    );
+    await logInventoryAudit("equipment_item.bulk_moved", "equipment_items", null, {
+      itemIds: parsed.itemIds,
+      toWarehouseLocationId: parsed.toWarehouseLocationId,
+    });
+    return movements;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
 export const equipmentItemService = {
   createEquipmentItem,
   updateEquipmentItem,
@@ -166,4 +328,10 @@ export const equipmentItemService = {
   transferEquipmentItem,
   checkOutEquipmentItem,
   checkInEquipmentItem,
+  putAwayEquipmentItem,
+  pickEquipmentItem,
+  quarantineEquipmentItem,
+  releaseFromQuarantineEquipmentItem,
+  scrapEquipmentItem,
+  bulkMoveEquipmentItems,
 };

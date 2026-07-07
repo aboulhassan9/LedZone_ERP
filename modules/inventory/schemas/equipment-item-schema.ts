@@ -40,3 +40,21 @@ export const checkInEquipmentItemSchema = z.object({
   referenceNote: z.string().max(1000).optional(),
 });
 export type CheckInEquipmentItemInput = z.infer<typeof checkInEquipmentItemSchema>;
+
+// Warehouse-triggered movement types (put_away/quarantine/release/scrap) — these still flow
+// through equipmentItemService (EquipmentLifecycleService) like every other state change;
+// only the addressing differs (a warehouse_locations node instead of a storage_locations
+// row, since these originate from Module 3's hierarchy). See
+// modules/warehouse/services/*.ts for the callers.
+export const warehouseItemMovementSchema = z.object({
+  toWarehouseLocationId: z.string().uuid("Select a destination location"),
+  reason: z.string().max(500).optional(),
+});
+export type WarehouseItemMovementInput = z.infer<typeof warehouseItemMovementSchema>;
+
+export const bulkWarehouseMoveSchema = z.object({
+  itemIds: z.array(z.string().uuid()).min(1, "Select at least one item"),
+  toWarehouseLocationId: z.string().uuid("Select a destination location"),
+  reason: z.string().max(500).optional(),
+});
+export type BulkWarehouseMoveInput = z.infer<typeof bulkWarehouseMoveSchema>;

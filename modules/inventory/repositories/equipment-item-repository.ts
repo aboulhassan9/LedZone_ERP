@@ -110,4 +110,43 @@ export const equipmentItemRepository = {
     if (error) throw error;
     return data;
   },
+
+  // Transactional: the warehouse-triggered counterpart of recordMovementViaTransaction —
+  // addresses by warehouse_locations node (Module 3's hierarchy) instead of a
+  // storage_locations row, and optionally flips current_status. Backs
+  // put_away/quarantine/release/scrap for modules/warehouse/services/*.ts callers.
+  async recordWarehouseMovementViaTransaction(
+    itemId: string,
+    toWarehouseLocationId: string,
+    movementType: "put_away" | "pick" | "quarantine" | "release" | "scrap",
+    reason: string | null,
+    newStatus: string | null
+  ): Promise<EquipmentItemMovementRow> {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("record_warehouse_item_movement", {
+      p_item_id: itemId,
+      p_to_warehouse_location_id: toWarehouseLocationId,
+      p_movement_type: movementType,
+      p_reason: reason,
+      p_new_status: newStatus,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  // Transactional: moves every item in itemIds to the same destination bin in one batch.
+  async recordBulkMoveViaTransaction(
+    itemIds: string[],
+    toWarehouseLocationId: string,
+    reason: string | null
+  ): Promise<EquipmentItemMovementRow[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("record_warehouse_bulk_move", {
+      p_item_ids: itemIds,
+      p_to_warehouse_location_id: toWarehouseLocationId,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    return data ?? [];
+  },
 };

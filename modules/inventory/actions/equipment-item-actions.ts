@@ -10,6 +10,8 @@ import type {
   TransferEquipmentItemInput,
   CheckOutEquipmentItemInput,
   CheckInEquipmentItemInput,
+  WarehouseItemMovementInput,
+  BulkWarehouseMoveInput,
 } from "@/modules/inventory/schemas/equipment-item-schema";
 import type {
   EquipmentItemRow,
@@ -68,5 +70,60 @@ export async function checkInEquipmentItemAction(
 ): Promise<ActionResult<EquipmentItemMovementRow>> {
   const result = await runAction(() => equipmentItemService.checkInEquipmentItem(id, input));
   revalidateItem(id);
+  return result;
+}
+
+// --- Warehouse-triggered movement types (Module 3) --------------------------------------
+
+export async function putAwayEquipmentItemAction(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<ActionResult<EquipmentItemMovementRow>> {
+  const result = await runAction(() => equipmentItemService.putAwayEquipmentItem(id, input));
+  revalidateItem(id);
+  return result;
+}
+
+export async function pickEquipmentItemAction(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<ActionResult<EquipmentItemMovementRow>> {
+  const result = await runAction(() => equipmentItemService.pickEquipmentItem(id, input));
+  revalidateItem(id);
+  return result;
+}
+
+export async function quarantineEquipmentItemAction(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<ActionResult<EquipmentItemMovementRow>> {
+  const result = await runAction(() => equipmentItemService.quarantineEquipmentItem(id, input));
+  revalidateItem(id);
+  return result;
+}
+
+export async function releaseFromQuarantineEquipmentItemAction(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<ActionResult<EquipmentItemMovementRow>> {
+  const result = await runAction(() => equipmentItemService.releaseFromQuarantineEquipmentItem(id, input));
+  revalidateItem(id);
+  return result;
+}
+
+export async function scrapEquipmentItemAction(
+  id: string,
+  input: WarehouseItemMovementInput
+): Promise<ActionResult<EquipmentItemMovementRow>> {
+  const result = await runAction(() => equipmentItemService.scrapEquipmentItem(id, input));
+  revalidateItem(id);
+  return result;
+}
+
+export async function bulkMoveEquipmentItemsAction(
+  input: BulkWarehouseMoveInput
+): Promise<ActionResult<EquipmentItemMovementRow[]>> {
+  const result = await runAction(() => equipmentItemService.bulkMoveEquipmentItems(input));
+  revalidatePath("/inventory/items");
   return result;
 }

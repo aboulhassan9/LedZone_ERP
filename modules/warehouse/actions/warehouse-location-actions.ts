@@ -8,7 +8,10 @@ import type {
   CreateWarehouseLocationInput,
   UpdateWarehouseLocationInput,
 } from "@/modules/warehouse/schemas/warehouse-location-schema";
-import type { WarehouseLocationRow } from "@/modules/warehouse/repositories/warehouse-location-repository";
+import {
+  warehouseLocationRepository,
+  type WarehouseLocationRow,
+} from "@/modules/warehouse/repositories/warehouse-location-repository";
 
 function revalidateLocations(warehouseId?: string) {
   revalidatePath("/warehouse/locations");
@@ -37,3 +40,11 @@ export async function archiveWarehouseLocationAction(id: string): Promise<Action
   revalidateLocations();
   return result;
 }
+
+// Read-only "contents preview" for the Location Explorer — no mutation, so it's a thin
+// repository read rather than a service-layer call (RLS on equipment_items/
+// consumable_stock_levels already gates visibility).
+export async function getLocationContentsAction(warehouseLocationId: string) {
+  return warehouseLocationRepository.findContents(warehouseLocationId);
+}
+

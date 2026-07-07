@@ -19,6 +19,14 @@ import {
   Package,
   ShoppingCart,
   Droplets,
+  Building2,
+  Network,
+  ArrowLeftRight,
+  PackagePlus,
+  PackageMinus,
+  ListChecks,
+  CalendarClock,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,6 +75,20 @@ const SECTIONS: NavSection[] = [
       },
       { href: "/inventory/purchases", label: "Purchase Records", icon: ShoppingCart, permission: "inventory.view" },
       { href: "/inventory/consumables", label: "Consumables", icon: Droplets, permission: "inventory.view" },
+    ],
+  },
+  {
+    title: "Warehouse",
+    items: [
+      { href: "/warehouse", label: "Dashboard", icon: LayoutDashboard, permission: "warehouse.view" },
+      { href: "/warehouse/warehouses", label: "Warehouses", icon: Building2, permission: "warehouse.view" },
+      { href: "/warehouse/locations", label: "Location Explorer", icon: Network, permission: "warehouse.view" },
+      { href: "/warehouse/transfers", label: "Transfers", icon: ArrowLeftRight, permission: "warehouse.view" },
+      { href: "/warehouse/receiving", label: "Receiving", icon: PackagePlus, permission: "warehouse.view" },
+      { href: "/warehouse/dispatch", label: "Dispatch", icon: PackageMinus, permission: "warehouse.view" },
+      { href: "/warehouse/picking", label: "Picking", icon: ListChecks, permission: "warehouse.view" },
+      { href: "/warehouse/reservations", label: "Reservations", icon: CalendarClock, permission: "warehouse.view" },
+      { href: "/warehouse/cycle-counts", label: "Cycle Counts", icon: ClipboardCheck, permission: "warehouse.view" },
     ],
   },
   {

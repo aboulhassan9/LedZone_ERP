@@ -164,4 +164,60 @@ export const warehouseLocationRepository = {
     if (error) throw error;
     return data;
   },
+
+  async findAllOccupancy(warehouseId: string): Promise<
+    Array<{
+      warehouse_location_id: string;
+      capacity_units: number | null;
+      equipment_count: number;
+      consumable_qty: number;
+      occupied_units: number;
+      utilization_pct: number | null;
+    }>
+  > {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("warehouse_location_occupancy")
+      .select("warehouse_location_id, capacity_units, equipment_count, consumable_qty, occupied_units, utilization_pct")
+      .eq("warehouse_id", warehouseId);
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  // "Contents preview" — the individual items/consumables currently placed at a bin,
+  // resolved through its storage_locations bridge. Read-only, no service-layer business
+  // logic beyond the join itself.
+  async findContents(warehouseLocationId: string): Promise<{
+    items: { id: string; asset_tag: string; current_status: string }[];
+    consumables: { model_id: string; model_name: string; quantity_on_hand: number; unit_of_measure: string }[];
+  }> {
+    const supabase = await createClient();
+    const storageLocationId = await this.findBridgedStorageLocationId(warehouseLocationId);
+    if (!storageLocationId) return { items: [], consumables: [] };
+
+    const [{ data: items, error: itemsError }, { data: consumables, error: consumablesError }] =
+      await Promise.all([
+        supabase
+          .from("equipment_items")
+          .select("id, asset_tag, current_status")
+          .eq("current_storage_location_id", storageLocationId)
+          .is("deleted_at", null),
+        supabase
+          .from("consumable_stock_levels")
+          .select("model_id, quantity_on_hand, unit_of_measure, equipment_models(model_name)")
+          .eq("storage_location_id", storageLocationId),
+      ]);
+    if (itemsError) throw itemsError;
+    if (consumablesError) throw consumablesError;
+
+    return {
+      items: items ?? [],
+      consumables: (consumables ?? []).map((c) => ({
+        model_id: c.model_id,
+        model_name: (c.equipment_models as unknown as { model_name: string } | null)?.model_name ?? "—",
+        quantity_on_hand: c.quantity_on_hand,
+        unit_of_measure: c.unit_of_measure,
+      })),
+    };
+  },
 };

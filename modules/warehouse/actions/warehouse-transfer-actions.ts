@@ -27,6 +27,12 @@ export async function createTransferRequestAction(
   return result;
 }
 
+export async function submitTransferAction(id: string): Promise<ActionResult<WarehouseTransferRow>> {
+  const result = await runAction(() => warehouseTransferService.submitTransfer(id));
+  revalidateTransfers(id);
+  return result;
+}
+
 export async function approveTransferAction(id: string): Promise<ActionResult<WarehouseTransferRow>> {
   const result = await runAction(() => warehouseTransferService.approveTransfer(id));
   revalidateTransfers(id);

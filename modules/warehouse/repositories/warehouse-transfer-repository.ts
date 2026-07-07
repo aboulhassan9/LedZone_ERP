@@ -97,7 +97,7 @@ export const warehouseTransferRepository = {
 
   async updateStatus(
     id: string,
-    status: "cancelled",
+    status: "submitted" | "rejected" | "cancelled" | "failed",
     userId: string,
     notes?: string
   ): Promise<WarehouseTransferRow> {

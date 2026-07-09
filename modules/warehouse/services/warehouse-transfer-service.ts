@@ -24,7 +24,7 @@ import {
 } from "@/modules/warehouse/repositories/warehouse-transfer-repository";
 import { equipmentItemRepository } from "@/modules/inventory/repositories/equipment-item-repository";
 
-const UNAVAILABLE_STATUSES = new Set(["retired", "lost", "in_maintenance"]);
+const UNAVAILABLE_STATUSES = new Set(["scrapped", "lost", "in_maintenance"]);
 // Terminal or in-flight states a cancel can't touch.
 const NON_CANCELLABLE = new Set(["completed", "cancelled", "rejected", "failed"]);
 

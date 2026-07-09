@@ -48,6 +48,31 @@ directly. Two sanctioned paths exist:
 See `warehouse-transfer-service.ts`'s `executeTransfer` for the fullest inline explanation
 of this boundary, and `03-services-api.md` / `07-testing-report.md` for its audit status.
 
+## The equipment lifecycle state machine
+
+Every write to `equipment_items.current_status` — from either module — is validated
+against an explicit state machine before it happens, not just permission-checked. Vocabulary:
+`available, reserved, picked, in_transit, on_site, returned, inspection, quarantined,
+in_maintenance, in_use, scrapped, lost`. `scrapped` is terminal: once set, no further
+operation of any kind is permitted on that item (not even a location-only move) until a
+future administrative restore workflow is intentionally introduced — none exists today.
+
+Enforced in two places, per the Module 3.5 review:
+
+1. **Database** — `equipment_status_transitions` (0045) is the canonical list of legal
+   `(from, to)` pairs. `assert_equipment_status_transition(item_id, to_status)` locks the
+   item's row, rejects any operation on a scrapped item, and rejects an illegal edge; every
+   RPC that writes `current_status` calls it first (0046, 0048). This is the real boundary,
+   since these RPCs are `grant execute to authenticated` and callable directly via
+   Supabase's REST API — the application is not trusted to be the only caller.
+2. **Application** — `modules/inventory/lifecycle/equipment-status-transitions.ts` mirrors
+   the same table in TypeScript, checked by `equipmentItemService` before ever reaching the
+   database, for a fast and friendly error.
+
+Full detail, including which operation targets which status and the reasoning behind the
+`damaged`→`quarantined` and `retired`→`scrapped` vocabulary cleanup: `07-testing-report.md`'s
+addendum.
+
 ## Warehouse hierarchy
 
 `warehouse_locations` self-references via `parent_id`, scoped to one `warehouse_id`.

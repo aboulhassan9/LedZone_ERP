@@ -18,7 +18,7 @@ import {
 } from "@/modules/warehouse/repositories/warehouse-dispatch-repository";
 import { equipmentItemRepository } from "@/modules/inventory/repositories/equipment-item-repository";
 
-const AVAILABLE_FOR_DISPATCH = new Set(["available", "reserved"]);
+const AVAILABLE_FOR_DISPATCH = new Set(["available", "reserved", "picked"]);
 
 async function requireDispatch(id: string): Promise<WarehouseDispatchRow> {
   const record = await warehouseDispatchRepository.findById(id);
@@ -71,7 +71,10 @@ async function createDispatch(input: CreateDispatchInput): Promise<{
 // Rule: no direct equipment_items/consumable_stock_levels writes here — every line goes
 // through complete_warehouse_dispatch_line (0040), the same audited transactional boundary
 // used throughout this module (see warehouse-transfer-service.ts's executeTransfer for the
-// full reasoning).
+// full reasoning). That function now independently re-validates the item's status
+// transition to in_transit via assert_equipment_status_transition() immediately before this
+// write — closing the gap where createDispatch's availability check (above) was the only
+// check, and could go stale between dispatch creation and line completion.
 async function completeDispatchLine(dispatchId: string, lineId: string): Promise<WarehouseDispatchLineRow> {
   await assertAnyPermission(["warehouse.manage", "warehouse.dispatch"]);
   await requireDispatch(dispatchId);

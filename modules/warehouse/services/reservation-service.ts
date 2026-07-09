@@ -19,28 +19,26 @@ async function requireReservation(id: string): Promise<WarehouseReservationRow> 
 }
 
 // Prevents double booking: an item can only have one active (unreleased, unexpired)
-// reservation at a time. A location reservation instead defers to
+// reservation at a time. This is now enforced atomically by create_warehouse_reservation
+// (0047) — a partial unique index on warehouse_reservations(item_id) where released_at is
+// null — rather than a check-then-insert here, which couldn't guarantee it under
+// concurrent requests for the same item. A location reservation instead defers to
 // WarehouseLocationService.assertCapacity, since a bin can validly hold multiple reserved
-// units up to its declared capacity.
+// units up to its declared capacity (not the race this fixes).
 async function createReservation(input: CreateReservationInput): Promise<WarehouseReservationRow> {
-  const userId = await assertAnyPermission(["warehouse.manage", "warehouse.location.manage"]);
+  await assertAnyPermission(["warehouse.manage", "warehouse.location.manage"]);
   const parsed = createReservationSchema.parse(input);
 
   if (new Date(parsed.expiresAt).getTime() <= Date.now()) {
     throw new ConflictError("expiresAt must be in the future.");
   }
 
-  if (parsed.itemId) {
-    const existing = await warehouseReservationRepository.findActiveForItem(parsed.itemId);
-    if (existing.length > 0) {
-      throw new ConflictError("This item already has an active reservation.");
-    }
-  } else if (parsed.warehouseLocationId) {
+  if (parsed.warehouseLocationId) {
     await warehouseLocationService.assertCapacity(parsed.warehouseLocationId, 1);
   }
 
   try {
-    const reservation = await warehouseReservationRepository.create(parsed, userId);
+    const reservation = await warehouseReservationRepository.createViaTransaction(parsed);
     await logWarehouseAudit("warehouse_reservation.created", "warehouse_reservations", reservation.id, {
       warehouseLocationId: parsed.warehouseLocationId,
       itemId: parsed.itemId,
@@ -49,6 +47,10 @@ async function createReservation(input: CreateReservationInput): Promise<Warehou
     });
     return reservation;
   } catch (error) {
+    const pgError = error as { code?: string } | null;
+    if (pgError?.code === "23505") {
+      throw new ConflictError("This item already has an active reservation.");
+    }
     throw toWarehouseError(error, "Reservation");
   }
 }

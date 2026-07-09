@@ -7,11 +7,16 @@ import { Timeline, type TimelineEntry } from "@/modules/inventory/components/tim
 const ITEM_STATUSES = [
   "available",
   "reserved",
-  "in_use",
+  "picked",
+  "in_transit",
+  "on_site",
+  "returned",
+  "inspection",
+  "quarantined",
   "in_maintenance",
-  "damaged",
+  "in_use",
+  "scrapped",
   "lost",
-  "retired",
 ] as const;
 
 export default async function InventoryDashboardPage() {

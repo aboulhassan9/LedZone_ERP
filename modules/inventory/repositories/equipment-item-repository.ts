@@ -94,16 +94,11 @@ export const equipmentItemRepository = {
     return data;
   },
 
-  async archive(id: string, userId: string): Promise<void> {
+  // Transactional: validates the status transition to 'scrapped' before soft-deleting —
+  // a plain `.update()` here would bypass assert_equipment_status_transition entirely.
+  async archive(id: string): Promise<void> {
     const supabase = await createClient();
-    const { error } = await supabase
-      .from("equipment_items")
-      .update({
-        current_status: "retired",
-        deleted_at: new Date().toISOString(),
-        deleted_by: userId,
-      })
-      .eq("id", id);
+    const { error } = await supabase.rpc("archive_equipment_item", { p_item_id: id });
     if (error) throw error;
   },
 

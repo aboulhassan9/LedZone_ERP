@@ -66,6 +66,12 @@ export function toInventoryError(error: unknown, entity: string): InventoryError
   if (pgError?.message?.includes("Permission denied")) {
     return new PermissionDeniedError();
   }
+  if (
+    pgError?.message?.includes("scrapped") ||
+    pgError?.message?.includes("Illegal equipment status transition")
+  ) {
+    return new ConflictError(pgError.message ?? `${entity}'s status transition is not allowed.`);
+  }
   if (pgError?.message?.includes("not found")) {
     return new NotFoundError(entity);
   }

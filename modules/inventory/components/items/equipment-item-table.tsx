@@ -26,11 +26,16 @@ import type { EquipmentModelRow } from "@/modules/inventory/repositories/equipme
 const ITEM_STATUSES = [
   "available",
   "reserved",
-  "in_use",
+  "picked",
+  "in_transit",
+  "on_site",
+  "returned",
+  "inspection",
+  "quarantined",
   "in_maintenance",
-  "damaged",
+  "in_use",
+  "scrapped",
   "lost",
-  "retired",
 ];
 
 export function EquipmentItemTable({

@@ -16,7 +16,7 @@ export default async function DispatchPage() {
     await Promise.all([
       supabase.from("warehouse_dispatch_records").select(RECORD_COLUMNS).is("deleted_at", null).order("dispatched_at", { ascending: false }),
       supabase.from("warehouses").select("id, name, code").is("deleted_at", null).order("name"),
-      supabase.from("equipment_items").select("id, asset_tag").is("deleted_at", null).in("current_status", ["available", "reserved"]),
+      supabase.from("equipment_items").select("id, asset_tag").is("deleted_at", null).in("current_status", ["available", "reserved", "picked"]),
       supabase.from("equipment_models").select("id, model_name").eq("tracking_type", "consumable").is("deleted_at", null),
       supabase.from("warehouse_locations").select("id, full_code").is("deleted_at", null).eq("is_placeable", true),
       hasPermission("warehouse.manage").then((v) => v || hasPermission("warehouse.dispatch")),

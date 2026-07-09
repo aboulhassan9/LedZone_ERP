@@ -32,11 +32,10 @@ export default async function WarehouseDashboardPage() {
       .eq("status", "active"),
     supabase.from("equipment_items").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("current_status", "available"),
     supabase.from("equipment_items").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("current_status", "reserved"),
-    supabase
-      .from("warehouse_transfer_lines")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "in_transit")
-      .not("item_id", "is", null),
+    // Dispatched equipment (complete_warehouse_dispatch_line sets current_status =
+    // 'in_transit') — a direct, authoritative read now that the status exists on the item
+    // itself, rather than the previous proxy via warehouse_transfer_lines.status.
+    supabase.from("equipment_items").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("current_status", "in_transit"),
     supabase.from("warehouse_transfers").select("*", { count: "exact", head: true }).eq("status", "submitted"),
     supabase.from("warehouse_receiving_records").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("status", "pending"),
     supabase.from("warehouse_dispatch_records").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("status", "pending"),
@@ -58,7 +57,7 @@ export default async function WarehouseDashboardPage() {
     { label: "Active locations", value: locationsResult.count ?? 0, href: "/warehouse/locations" },
     { label: "Equipment available", value: availableResult.count ?? 0, href: "/warehouse/reservations" },
     { label: "Equipment reserved", value: reservedResult.count ?? 0, href: "/warehouse/reservations" },
-    { label: "Equipment in transit", value: inTransitResult.count ?? 0, href: "/warehouse/transfers" },
+    { label: "Equipment in transit", value: inTransitResult.count ?? 0, href: "/warehouse/dispatch" },
     { label: "Pending transfers", value: transfersResult.count ?? 0, href: "/warehouse/transfers" },
     { label: "Pending receiving", value: receivingResult.count ?? 0, href: "/warehouse/receiving" },
     { label: "Pending dispatch", value: dispatchResult.count ?? 0, href: "/warehouse/dispatch" },

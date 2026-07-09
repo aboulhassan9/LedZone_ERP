@@ -4,10 +4,14 @@ Not commitments — a candidate list, roughly grouped.
 
 ## Correctness follow-ups (see `08-known-limitations.md`)
 
-- Define the full equipment status transition graph explicitly and enforce it at the RPC
-  layer (not just JS), closing the gap in `07-testing-report.md` §1a.
-- Add a partial unique index backing "one active reservation per item" and handle the
-  resulting conflict as a friendly error, closing §1b.
+- ~~Define the full equipment status transition graph explicitly and enforce it at the RPC
+  layer~~ — done, see `07-testing-report.md`'s addendum. Follow-up: the "On Site" and
+  "Returned → Inspection" states are modeled in `equipment_status_transitions` but nothing
+  currently triggers them (no Events/Rentals module or dedicated inspection workflow
+  exists yet) — wire them up when those are built, rather than leaving them permanently
+  unreachable.
+- ~~Add a partial unique index backing "one active reservation per item"~~ — done, see the
+  same addendum.
 - Decide and implement the intended behavior for partial transfer-execution failure
   (leave as-is / add compensating rollback), closing §1c.
 - Add IP/device capture and a structured old/new-value diff to `audit_logs` if stronger

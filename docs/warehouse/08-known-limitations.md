@@ -3,15 +3,14 @@
 Consolidated from `07-testing-report.md`. Ordered roughly by how much it matters for a
 production sign-off.
 
-1. **Status-transition validation is incomplete.** Only `pickEquipmentItem` checks the
-   item's current status before transitioning. `putAwayEquipmentItem`,
-   `quarantineEquipmentItem`, `releaseFromQuarantineEquipmentItem`, `scrapEquipmentItem`,
-   and the RPC-driven completion of a dispatch/receiving line have no status guard, at
-   either the JS or database layer. See `07-testing-report.md` §1a.
+1. ~~Status-transition validation is incomplete.~~ **Fixed** — an explicit state machine
+   (`equipment_status_transitions`, `assert_equipment_status_transition`) is now enforced
+   at both the RPC and application layer for every status-mutating operation. See
+   `07-testing-report.md`'s addendum.
 
-2. **Reservation conflict check has a race window.** "One active reservation per item" is
-   enforced by application-level check-then-insert, not a DB constraint. See
-   `07-testing-report.md` §1b.
+2. ~~Reservation conflict check has a race window.~~ **Fixed** — a partial unique index
+   plus an atomic `create_warehouse_reservation()` RPC now guarantee this at the database
+   level. See `07-testing-report.md`'s addendum.
 
 3. **Partial transfer-execution failure doesn't reverse already-completed lines** — it
    marks the transfer `failed` and stops. See `07-testing-report.md` §1c.

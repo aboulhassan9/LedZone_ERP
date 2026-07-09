@@ -7,8 +7,13 @@ active security testing, cross-device/dark-mode UI review) and an automated test
 explicitly out of scope for this pass, by the user's own decision — see
 `08-known-limitations.md` and `10-live-testing-checklist.md`.
 
+**Update after review:** §1a and §1b below were marked "must fix before approval" on review
+and have since been fixed — see the addendum at the end of this document for what changed.
+The body of the report is left as originally written (including the ⚠️ markers) so the
+review trail stays intact; treat the addendum as the current, authoritative status of both.
+
 Legend: ✅ verified/passing · 🔧 gap found and fixed in this pass · ⚠️ gap found, not fixed
-(needs a decision) · 📝 documented, not a defect
+(needs a decision, since resolved — see addendum) · 📝 documented, not a defect
 
 ---
 
@@ -216,6 +221,89 @@ This document set (`docs/warehouse/01`–`10`) — produced as part of this mile
 | Performance targets are met | Not tested at scale this pass — see §7-9 |
 | Documentation is complete | ✅ this set |
 
-**Recommendation**: the two unresolved ⚠️ items in §1a/§1b (status-transition validation,
-reservation race) are the ones I'd treat as blocking for a genuine "production-ready" sign-off
-— everything else found was either fixed inline or is a legitimate, documented deferral.
+**Recommendation** (superseded — see addendum): the two unresolved ⚠️ items in §1a/§1b
+(status-transition validation, reservation race) are the ones I'd treat as blocking for a
+genuine "production-ready" sign-off — everything else found was either fixed inline or is a
+legitimate, documented deferral.
+
+---
+
+## Addendum — §1a and §1b fixed (post-review)
+
+On review, both §1a and §1b were marked "must fix before approval," with explicit direction
+on how: an application-layer state machine (EquipmentLifecycleService as the single source
+of truth) *and* database/RPC-layer enforcement (since RPCs are callable directly via
+Supabase's API and shouldn't trust the client), plus a database-level atomicity guarantee
+for reservations (unique constraint / atomic RPC, not check-then-insert). Both are now done.
+
+### §1a — Explicit equipment lifecycle state machine (`0045`, `0046`, `0048`)
+
+- **`equipment_status_transitions`** (0045) — a reference table of every legal
+  `(from_status, to_status)` pair, seeded per the exact chain given on review: Available →
+  Reserved → Picked → In Transit → On Site → Returned → Inspection → Available/Quarantined
+  → Maintenance → Available, plus quarantine/lost reachable from any active state and Any →
+  Scrapped (terminal, no outgoing rows at all).
+- **`is_valid_equipment_status_transition()`** / **`assert_equipment_status_transition()`**
+  (0045) — the DB-side guard. The latter locks the item's row (`FOR UPDATE`), blocks
+  *any* operation once an item is `scrapped`, and raises on an illegal edge. Verified
+  directly: `available→in_transit` = true, `scrapped→available` = false,
+  `quarantined→available` = false (must go through `in_maintenance` first),
+  `quarantined→in_maintenance` = true.
+- **Every RPC that writes `equipment_items.current_status` now calls this guard first**
+  (0046): `record_equipment_item_movement`, `create_damage_report`, `create_lost_report`,
+  `create_maintenance_record`, `record_warehouse_item_movement`,
+  `complete_warehouse_receiving_line`, `complete_warehouse_dispatch_line`. The two that only
+  move *location* (`record_warehouse_bulk_move`, `complete_warehouse_transfer_line`) now
+  re-assert the item's current status as a no-op, which is enough to block them on a
+  scrapped item without asserting a real transition.
+- **A bypass found while wiring this in**: `equipmentItemRepository.archive()` was a plain
+  `.update()` — not even routed through an RPC, the most directly bypassable path of all.
+  Fixed with a new `archive_equipment_item()` RPC (0048) that validates the transition to
+  `scrapped` before soft-deleting.
+- **Vocabulary cleanup** (zero rows existed in `equipment_items`, so this was a free schema
+  change, no data migration): `damaged` is dropped as a *status* (it stays a
+  `current_condition` value — the table's own original comment already said status and
+  condition should be independent axes); Inventory's damage-report flow and Warehouse's
+  quarantine flow now both target the same status, `quarantined`. `retired` is renamed to
+  `scrapped`. New: `picked`, `in_transit`, `on_site`, `returned`, `inspection`. Dispatch
+  completion now targets `in_transit` (was `in_use`, which is reserved for Module 2's
+  separate internal checkout/checkin loan flow). `releaseFromQuarantineEquipmentItem` now
+  targets `in_maintenance` (was `available` directly) — `create_maintenance_record`'s
+  existing `p_mark_item_available` flag already implements Maintenance → Available, so no
+  new completion method was needed.
+- **Application-layer mirror**: `modules/inventory/lifecycle/equipment-status-transitions.ts`
+  — the same table in TypeScript, checked by `equipmentItemService`'s methods before ever
+  reaching the database, for a fast and friendly error. The database re-validates
+  independently regardless (`assert_equipment_status_transition`) and remains the final
+  authority, per the two-layer requirement.
+- **Found and fixed in passing**: `toInventoryError`/`toWarehouseError` didn't recognize
+  the new guard's exception messages and would have surfaced them as raw, unhandled errors
+  instead of friendly `ConflictError`s — both now pattern-match on "scrapped" / "Illegal
+  equipment status transition".
+- **Closes the TOCTOU gap originally flagged**: `complete_warehouse_dispatch_line` now
+  re-validates at completion time, not just at dispatch creation, so an item that changed
+  status between the two can no longer be silently dispatched.
+
+### §1b — Reservation atomicity (`0047`)
+
+- **`warehouse_reservations_active_item_uq`** — a partial unique index on
+  `warehouse_reservations(item_id) where released_at is null`. This is the only mechanism
+  Postgres offers that's actually atomic across concurrent transactions for "at most one
+  row matching X" — row-level locking alone (`SELECT ... FOR UPDATE`) cannot prevent two
+  concurrent transactions from both inserting a *first* row for the same key.
+- **`create_warehouse_reservation()`** — the atomic RPC option you suggested. Auto-releases
+  the item's own expired-but-unreleased reservations first (preserving the existing
+  "an expired reservation doesn't block a new one" behavior, which a bare unique index
+  alone would have regressed), then inserts, letting the unique index reject a genuine
+  concurrent conflict with a friendly re-raised message.
+- `reservationService.createReservation` now calls this RPC instead of a check-then-insert,
+  and catches the resulting `23505` as a `ConflictError`.
+
+### Verification
+
+`npx tsc --noEmit`, `npm run lint`, `npm run build` all pass. Supabase security advisors:
+the two new `SECURITY DEFINER` functions (`archive_equipment_item`,
+`create_warehouse_reservation`) appear in the same already-accepted "callable by
+authenticated" category as every other lifecycle RPC — no new or unexpected finding.
+
+**Both items in the approval-gate table above should now be read as resolved.**

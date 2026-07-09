@@ -54,20 +54,19 @@ export const warehouseReservationRepository = {
     return data ?? [];
   },
 
-  async create(input: CreateReservationInput, userId: string): Promise<WarehouseReservationRow> {
+  // Transactional: auto-releases the item's own expired reservations, then inserts,
+  // relying on the warehouse_reservations_active_item_uq partial unique index (0047) to
+  // atomically reject a genuine concurrent conflict — a check-then-insert in application
+  // code can't guarantee that under concurrency, this can.
+  async createViaTransaction(input: CreateReservationInput): Promise<WarehouseReservationRow> {
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("warehouse_reservations")
-      .insert({
-        warehouse_location_id: input.warehouseLocationId,
-        item_id: input.itemId,
-        reserved_for_type: input.reservedForType,
-        reserved_by: userId,
-        expires_at: input.expiresAt,
-        reference_note: input.referenceNote,
-      })
-      .select(COLUMNS)
-      .single();
+    const { data, error } = await supabase.rpc("create_warehouse_reservation", {
+      p_warehouse_location_id: input.warehouseLocationId ?? null,
+      p_item_id: input.itemId ?? null,
+      p_reserved_for_type: input.reservedForType,
+      p_expires_at: input.expiresAt,
+      p_reference_note: input.referenceNote ?? null,
+    });
     if (error) throw error;
     return data;
   },

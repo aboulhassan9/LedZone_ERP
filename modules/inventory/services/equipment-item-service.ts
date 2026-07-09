@@ -2,6 +2,7 @@ import "server-only";
 import { assertPermission, assertAnyPermission } from "@/modules/inventory/shared/authorize";
 import { logInventoryAudit } from "@/modules/inventory/shared/audit";
 import { ConflictError, NotFoundError, toInventoryError } from "@/modules/inventory/errors";
+import { assertEquipmentStatusTransition } from "@/modules/inventory/lifecycle/equipment-status-transitions";
 import {
   createEquipmentItemSchema,
   updateEquipmentItemSchema,
@@ -62,7 +63,7 @@ async function updateEquipmentItem(
 }
 
 async function archiveEquipmentItem(id: string): Promise<void> {
-  const userId = await assertPermission("inventory.manage");
+  await assertPermission("inventory.manage");
   const item = await requireItem(id);
 
   if (item.current_status === "in_use" || item.current_status === "reserved") {
@@ -70,9 +71,14 @@ async function archiveEquipmentItem(id: string): Promise<void> {
       `Cannot archive an item that is currently ${item.current_status}. Check it in first.`
     );
   }
+  assertEquipmentStatusTransition(item.current_status, "scrapped", (m) => new ConflictError(m));
 
-  await equipmentItemRepository.archive(id, userId);
-  await logInventoryAudit("equipment_item.archived", "equipment_items", id);
+  try {
+    await equipmentItemRepository.archive(id);
+    await logInventoryAudit("equipment_item.archived", "equipment_items", id);
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
 }
 
 async function transferEquipmentItem(
@@ -83,9 +89,10 @@ async function transferEquipmentItem(
   const parsed = transferEquipmentItemSchema.parse(input);
   const item = await requireItem(id);
 
-  if (item.current_status === "retired" || item.current_status === "lost") {
+  if (item.current_status === "lost") {
     throw new ConflictError(`Cannot transfer an item with status "${item.current_status}".`);
   }
+  assertEquipmentStatusTransition(item.current_status, item.current_status, (m) => new ConflictError(m));
 
   try {
     const movement = await equipmentItemRepository.recordMovementViaTransaction(
@@ -111,6 +118,9 @@ async function checkOutEquipmentItem(
   const parsed = checkOutEquipmentItemSchema.parse(input);
   const item = await requireItem(id);
 
+  // Deliberately a strict equality check, not the general assertEquipmentStatusTransition:
+  // "available -> in_use" is one of several valid ways to reach in_use in the abstract
+  // state machine, but checkout specifically must only ever start from available.
   if (item.current_status !== "available") {
     throw new ConflictError(
       `Item is not available for checkout (current status: ${item.current_status}).`
@@ -141,6 +151,8 @@ async function checkInEquipmentItem(
   const parsed = checkInEquipmentItemSchema.parse(input);
   const item = await requireItem(id);
 
+  // Strict equality, not the general guard: in_maintenance/inspection can also reach
+  // available, but only via their own dedicated completion flows, never via check-in.
   if (item.current_status !== "in_use") {
     throw new ConflictError(
       `Item is not checked out, so it can't be checked in (current status: ${item.current_status}).`
@@ -174,7 +186,9 @@ async function putAwayEquipmentItem(
 ): Promise<EquipmentItemMovementRow> {
   await assertAnyPermission(["warehouse.pick", "warehouse.manage"]);
   const parsed = warehouseItemMovementSchema.parse(input);
-  await requireItem(id);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "available", (m) => new ConflictError(m));
 
   try {
     const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
@@ -201,9 +215,11 @@ async function pickEquipmentItem(
   const parsed = warehouseItemMovementSchema.parse(input);
   const item = await requireItem(id);
 
-  if (item.current_status !== "available" && item.current_status !== "reserved") {
-    throw new ConflictError(`Item is not available to pick (current status: ${item.current_status}).`);
-  }
+  assertEquipmentStatusTransition(
+    item.current_status,
+    "picked",
+    (m) => new ConflictError(`Item is not available to pick (current status: ${item.current_status}). ${m}`)
+  );
 
   try {
     const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
@@ -211,7 +227,7 @@ async function pickEquipmentItem(
       parsed.toWarehouseLocationId,
       "pick",
       parsed.reason ?? null,
-      null
+      "picked"
     );
     await logInventoryAudit("equipment_item.picked", "equipment_items", id, {
       toWarehouseLocationId: parsed.toWarehouseLocationId,
@@ -228,7 +244,9 @@ async function quarantineEquipmentItem(
 ): Promise<EquipmentItemMovementRow> {
   await assertAnyPermission(["warehouse.location.manage", "warehouse.manage"]);
   const parsed = warehouseItemMovementSchema.parse(input);
-  await requireItem(id);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "quarantined", (m) => new ConflictError(m));
 
   try {
     const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
@@ -236,7 +254,7 @@ async function quarantineEquipmentItem(
       parsed.toWarehouseLocationId,
       "quarantine",
       parsed.reason ?? null,
-      "damaged"
+      "quarantined"
     );
     await logInventoryAudit("equipment_item.quarantined", "equipment_items", id, {
       toWarehouseLocationId: parsed.toWarehouseLocationId,
@@ -248,13 +266,19 @@ async function quarantineEquipmentItem(
   }
 }
 
+// "Release from quarantine" moves a quarantined item into active maintenance — not
+// straight back to available (that's completeMaintenanceEquipmentItem's job, via
+// maintenanceService.createMaintenanceRecord's markItemAvailable flag). Quarantined ->
+// Maintenance -> Available, per the explicit state machine.
 async function releaseFromQuarantineEquipmentItem(
   id: string,
   input: WarehouseItemMovementInput
 ): Promise<EquipmentItemMovementRow> {
   await assertAnyPermission(["warehouse.location.manage", "warehouse.manage"]);
   const parsed = warehouseItemMovementSchema.parse(input);
-  await requireItem(id);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "in_maintenance", (m) => new ConflictError(m));
 
   try {
     const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
@@ -262,7 +286,7 @@ async function releaseFromQuarantineEquipmentItem(
       parsed.toWarehouseLocationId,
       "release",
       parsed.reason ?? null,
-      "available"
+      "in_maintenance"
     );
     await logInventoryAudit("equipment_item.released_from_quarantine", "equipment_items", id, {
       toWarehouseLocationId: parsed.toWarehouseLocationId,
@@ -279,7 +303,9 @@ async function scrapEquipmentItem(
 ): Promise<EquipmentItemMovementRow> {
   await assertPermission("warehouse.manage");
   const parsed = warehouseItemMovementSchema.parse(input);
-  await requireItem(id);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "scrapped", (m) => new ConflictError(m));
 
   try {
     const movement = await equipmentItemRepository.recordWarehouseMovementViaTransaction(
@@ -287,7 +313,7 @@ async function scrapEquipmentItem(
       parsed.toWarehouseLocationId,
       "scrap",
       parsed.reason ?? null,
-      "retired"
+      "scrapped"
     );
     await logInventoryAudit("equipment_item.scrapped", "equipment_items", id, {
       toWarehouseLocationId: parsed.toWarehouseLocationId,

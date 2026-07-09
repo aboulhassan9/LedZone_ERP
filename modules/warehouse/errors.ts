@@ -107,6 +107,12 @@ export function toWarehouseError(error: unknown, entity: string): WarehouseError
   if (pgError?.message?.includes("no bridged storage_locations row")) {
     return new LocationNotFoundError(pgError.message);
   }
+  if (
+    pgError?.message?.includes("scrapped") ||
+    pgError?.message?.includes("Illegal equipment status transition")
+  ) {
+    return new ConflictError(pgError.message ?? `${entity}'s status transition is not allowed.`);
+  }
   if (pgError?.message?.includes("not found") || pgError?.message?.includes("does not exist")) {
     return new NotFoundError(entity);
   }

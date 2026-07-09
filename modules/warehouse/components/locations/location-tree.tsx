@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, ChevronDown, MapPin, Package } from "lucide-react";
+import { ChevronRight, ChevronDown, MapPin, Package, Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { LocationFormDialog } from "@/modules/warehouse/components/locations/location-form-dialog";
+import { LocationCodePanel } from "@/modules/warehouse/components/locations/location-code-panel";
 import { getLocationContentsAction } from "@/modules/warehouse/actions/warehouse-location-actions";
 import type { WarehouseLocationRow } from "@/modules/warehouse/repositories/warehouse-location-repository";
 
@@ -39,18 +42,26 @@ function TreeRow({
   selectedId,
   onSelect,
   matches,
+  searchActive,
 }: {
   node: TreeNode;
   depth: number;
   selectedId: string | null;
   onSelect: (node: TreeNode) => void;
   matches: (node: TreeNode) => boolean;
+  searchActive: boolean;
 }) {
-  const [open, setOpen] = useState(depth < 1);
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const hasChildren = node.children.length > 0;
-  const visible = matches(node) || node.children.some((c) => subtreeMatches(c, matches));
+  const descendantMatches = node.children.some((c) => subtreeMatches(c, matches));
+  const visible = matches(node) || descendantMatches;
 
   if (!visible) return null;
+
+  // While a search/deep-link is active, force any node whose subtree contains a match
+  // open — otherwise a matching bin nested under collapsed-by-default Row/Rack/Shelf
+  // ancestors (only depth 0 opens by default) would never render.
+  const open = manualOpen ?? (depth < 1 || (searchActive && descendantMatches));
 
   return (
     <div>
@@ -58,7 +69,7 @@ function TreeRow({
         type="button"
         onClick={() => {
           onSelect(node);
-          if (hasChildren) setOpen((o) => !o);
+          if (hasChildren) setManualOpen(!open);
         }}
         className={cn(
           "hover:bg-accent flex w-full items-center gap-1.5 rounded-md py-1.5 text-left text-sm",
@@ -93,6 +104,7 @@ function TreeRow({
               selectedId={selectedId}
               onSelect={onSelect}
               matches={matches}
+              searchActive={searchActive}
             />
           ))}
         </div>
@@ -106,6 +118,8 @@ function subtreeMatches(node: TreeNode, matches: (node: TreeNode) => boolean): b
 }
 
 function LocationDetailsPanel({ node, occupancy }: { node: TreeNode; occupancy?: OccupancyMap[string] }) {
+  const { hasPermission } = useAuth();
+  const canGenerateCodes = hasPermission("warehouse.manage") || hasPermission("warehouse.qr.generate");
   const { data, isLoading } = useQuery({
     queryKey: ["warehouse-location-contents", node.id],
     queryFn: () => getLocationContentsAction(node.id),
@@ -157,6 +171,8 @@ function LocationDetailsPanel({ node, occupancy }: { node: TreeNode; occupancy?:
           </div>
         )}
 
+        {node.is_placeable && <LocationCodePanel locationId={node.id} canGenerate={canGenerateCodes} />}
+
         {node.is_placeable && (
           <div className="grid gap-2">
             <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -199,10 +215,12 @@ export function LocationTree({
   warehouseId,
   locations,
   occupancy,
+  initialSelectedId,
 }: {
   warehouseId: string;
   locations: WarehouseLocationRow[];
   occupancy: OccupancyMap;
+  initialSelectedId?: string;
 }) {
   const { hasPermission } = useAuth();
   const canManage =
@@ -213,6 +231,18 @@ export function LocationTree({
   const [selected, setSelected] = useState<TreeNode | null>(null);
 
   const tree = useMemo(() => buildTree(locations), [locations]);
+
+  // Deep-link from scan-to-navigate (/warehouse/scan): jump straight to the scanned
+  // location by reusing the search filter's auto-expand behavior instead of duplicating
+  // ancestor-expansion logic.
+  useEffect(() => {
+    if (!initialSelectedId) return;
+    const target = locations.find((l) => l.id === initialSelectedId);
+    if (!target) return;
+    setSearch(target.full_code ?? target.code);
+    setSelected({ ...target, children: [] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSelectedId]);
 
   const matches = (node: TreeNode) => {
     if (!search.trim()) return true;
@@ -235,13 +265,20 @@ export function LocationTree({
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs"
           />
-          {canManage && (
-            <LocationFormDialog
-              warehouseId={warehouseId}
-              locations={locations}
-              defaultParentId={selected?.id}
-            />
-          )}
+          <div className="flex shrink-0 gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/warehouse/locations/labels?warehouseId=${warehouseId}`} target="_blank">
+                <Printer /> Print labels
+              </Link>
+            </Button>
+            {canManage && (
+              <LocationFormDialog
+                warehouseId={warehouseId}
+                locations={locations}
+                defaultParentId={selected?.id}
+              />
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {tree.length === 0 ? (
@@ -257,6 +294,7 @@ export function LocationTree({
                   depth={0}
                   selectedId={selected?.id ?? null}
                   onSelect={setSelected}
+                  searchActive={Boolean(search.trim())}
                   matches={matches}
                 />
               ))}

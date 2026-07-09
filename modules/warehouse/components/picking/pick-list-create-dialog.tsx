@@ -167,7 +167,7 @@ export function PickListCreateDialog({
             </div>
             <div className="grid gap-2">
               <FormLabel>Lines</FormLabel>
-              <LineItemsField name="lines" items={items} consumableModels={consumableModels} />
+              <LineItemsField name="lines" items={items} consumableModels={consumableModels} enableScan />
             </div>
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>

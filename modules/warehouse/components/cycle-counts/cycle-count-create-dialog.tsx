@@ -161,6 +161,7 @@ export function CycleCountCreateDialog({
                 consumableModels={consumableModels}
                 quantityField="expectedQty"
                 quantityLabel="Expected qty"
+                enableScan
               />
             </div>
             <DialogFooter>

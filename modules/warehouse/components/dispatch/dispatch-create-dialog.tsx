@@ -165,6 +165,7 @@ export function DispatchCreateDialog({
                 locations={locations}
                 locationField="sourceWarehouseLocationId"
                 locationLabel="Source location"
+                enableScan
               />
             </div>
             <FormField

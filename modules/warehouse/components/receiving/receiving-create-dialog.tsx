@@ -182,6 +182,7 @@ export function ReceivingCreateDialog({
                 locationField="destinationWarehouseLocationId"
                 locationLabel="Destination"
                 showCondition
+                enableScan
               />
             </div>
             <FormField

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFieldArray, useFormContext } from "react-hook-form";
+import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormMessage } from "@/components/ui/form";
+import { ScanInput } from "@/modules/warehouse/components/scan/scan-input";
 
 export type LineItemOption = { id: string; label: string };
 
@@ -31,6 +33,7 @@ export function LineItemsField({
   showCondition = false,
   quantityField = "quantity",
   quantityLabel = "Qty",
+  enableScan = false,
 }: {
   name: string;
   items: LineItemOption[];
@@ -42,12 +45,51 @@ export function LineItemsField({
   showCondition?: boolean;
   quantityField?: string;
   quantityLabel?: string;
+  enableScan?: boolean;
 }) {
   const { control, register, watch, setValue } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name });
 
+  // Scanned values are matched against the labels already loaded for the dropdowns (an
+  // item's asset_tag, a consumable model's name, or — when this field also has a location
+  // picker — a location's full_code): no server round-trip, so successive scanner
+  // keystrokes resolve instantly. An item/consumable match appends a new line; a location
+  // match fills the most recently added line's location (the natural "scan item, then scan
+  // its destination" order).
+  function handleScan(value: string) {
+    const item = items.find((i) => i.label === value);
+    if (item) {
+      append({ itemId: item.id, modelId: undefined, [quantityField]: showQuantityForItems || quantityField !== "quantity" ? 1 : undefined });
+      return;
+    }
+    const model = consumableModels.find((m) => m.label === value);
+    if (model) {
+      append({ itemId: undefined, modelId: model.id, [quantityField]: 1 });
+      return;
+    }
+    if (locationField && locations) {
+      const location = locations.find((l) => l.label === value);
+      if (location) {
+        if (fields.length === 0) {
+          toast.error("Add a line before scanning its location.");
+          return;
+        }
+        setValue(`${name}.${fields.length - 1}.${locationField}`, location.id);
+        return;
+      }
+    }
+    toast.error(`"${value}" doesn't match an item, consumable, or location.`);
+  }
+
   return (
     <div className="grid gap-3">
+      {enableScan && (
+        <ScanInput
+          onScan={handleScan}
+          placeholder="Scan an item, consumable, or location..."
+          autoFocus={false}
+        />
+      )}
       {fields.map((field, index) => {
         const kind = watch(`${name}.${index}.modelId`) ? "consumable" : "item";
 

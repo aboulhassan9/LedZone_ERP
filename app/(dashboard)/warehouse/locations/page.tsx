@@ -10,10 +10,10 @@ const LOCATION_COLUMNS =
 export default async function WarehouseLocationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ warehouseId?: string }>;
+  searchParams: Promise<{ warehouseId?: string; locationId?: string }>;
 }) {
   await requirePermission("warehouse.view");
-  const { warehouseId: requestedWarehouseId } = await searchParams;
+  const { warehouseId: requestedWarehouseId, locationId } = await searchParams;
 
   const supabase = await createClient();
   const { data: warehouses } = await supabase
@@ -74,6 +74,7 @@ export default async function WarehouseLocationsPage({
         warehouseId={warehouseId}
         locations={(locations ?? []) as WarehouseLocationRow[]}
         occupancy={occupancy}
+        initialSelectedId={locationId}
       />
     </div>
   );

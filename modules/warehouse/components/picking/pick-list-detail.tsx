@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WarehouseStatusBadge } from "@/modules/warehouse/components/status-badge";
+import { ScanInput } from "@/modules/warehouse/components/scan/scan-input";
 import { useAuth } from "@/providers/auth-provider";
 import { completePickLineAction, startPickListAction } from "@/modules/warehouse/actions/picking-actions";
 import type {
@@ -45,6 +46,7 @@ export function PickListDetail({
   const queryClient = useQueryClient();
   const canPick = hasPermission("warehouse.manage") || hasPermission("warehouse.pick");
   const [destinations, setDestinations] = useState<Record<string, string>>({});
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
 
   const startList = useMutation({
     mutationFn: () => startPickListAction(pickList.id),
@@ -71,6 +73,36 @@ export function PickListDetail({
       }
     },
   });
+
+  // Mirrors the physical act of picking: scan the item you just picked up, then scan the
+  // staging bin you're dropping it at (which also completes the line — scanning the
+  // destination is the natural "done" signal). Scanning the item alone just selects its
+  // line so the manual Pick button below can be used without a staging location.
+  function handleScan(value: string) {
+    const itemEntry = Object.entries(itemLabels).find(([, label]) => label === value);
+    if (itemEntry) {
+      const [itemId] = itemEntry;
+      const line = lines.find((l) => l.item_id === itemId && !l.picked);
+      if (!line) {
+        toast.error(`No pending pick line for "${value}".`);
+        return;
+      }
+      setActiveLineId(line.id);
+      return;
+    }
+    const location = locations.find((l) => l.label === value);
+    if (location) {
+      if (!activeLineId) {
+        toast.error("Scan an item first.");
+        return;
+      }
+      setDestinations((d) => ({ ...d, [activeLineId]: location.id }));
+      completeLine.mutate(activeLineId);
+      setActiveLineId(null);
+      return;
+    }
+    toast.error(`"${value}" doesn't match a pending item or a location.`);
+  }
 
   const completedCount = lines.filter((l) => l.picked).length;
 
@@ -108,6 +140,17 @@ export function PickListDetail({
         </CardContent>
       </Card>
 
+      {canPick && pickList.status === "in_progress" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Scan to pick</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScanInput onScan={handleScan} placeholder="Scan an item, then a staging location..." />
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Lines</CardTitle>
@@ -124,7 +167,7 @@ export function PickListDetail({
             </TableHeader>
             <TableBody>
               {lines.map((line) => (
-                <TableRow key={line.id}>
+                <TableRow key={line.id} className={line.id === activeLineId ? "bg-accent/50" : undefined}>
                   <TableCell>
                     {line.item_id ? itemLabels[line.item_id] ?? line.item_id : modelLabels[line.model_id ?? ""] ?? "—"}
                   </TableCell>

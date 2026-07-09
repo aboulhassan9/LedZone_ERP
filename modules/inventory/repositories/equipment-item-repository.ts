@@ -43,6 +43,20 @@ export const equipmentItemRepository = {
     return data;
   },
 
+  // A scanned QR/barcode encodes the item's own asset_tag (see equipment-item-code-service.ts),
+  // so resolving a scan back to an item is a lookup by that column, not the code tables.
+  async findByAssetTag(assetTag: string): Promise<EquipmentItemRow | null> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("equipment_items")
+      .select(COLUMNS)
+      .eq("asset_tag", assetTag)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
   // Transactional: creates the item, auto-generates its asset tag from the model's
   // category, and records an initial_placement movement — all in one Postgres function.
   async createViaTransaction(input: CreateEquipmentItemInput): Promise<EquipmentItemRow> {

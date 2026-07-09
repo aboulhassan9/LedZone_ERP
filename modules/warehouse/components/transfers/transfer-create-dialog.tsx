@@ -34,6 +34,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { LineItemsField, type LineItemOption } from "@/modules/warehouse/components/line-items-field";
+import { ScanInput } from "@/modules/warehouse/components/scan/scan-input";
 import {
   createTransferRequestSchema,
   type CreateTransferRequestInput,
@@ -67,6 +68,21 @@ export function TransferCreateDialog({
 
   const fromWarehouseId = form.watch("fromWarehouseId");
   const toWarehouseId = form.watch("toWarehouseId");
+
+  function handleLocationScan(value: string) {
+    const location = locations.find((l) => l.full_code === value);
+    if (!location) {
+      toast.error(`"${value}" doesn't match a location.`);
+      return;
+    }
+    if (!form.getValues("fromLocationId")) {
+      form.setValue("fromLocationId", location.id);
+    } else if (!form.getValues("toLocationId")) {
+      form.setValue("toLocationId", location.id);
+    } else {
+      toast.error("From and to locations are both already set.");
+    }
+  }
 
   async function onSubmit(values: CreateTransferRequestInput) {
     const result = await createTransferRequestAction(values);
@@ -147,6 +163,11 @@ export function TransferCreateDialog({
                   )}
                 />
               </div>
+              <ScanInput
+                onScan={handleLocationScan}
+                placeholder="Scan a location to fill from/to..."
+                autoFocus={false}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -212,7 +233,7 @@ export function TransferCreateDialog({
 
               <div className="grid gap-2">
                 <FormLabel>Lines</FormLabel>
-                <LineItemsField name="lines" items={items} consumableModels={consumableModels} />
+                <LineItemsField name="lines" items={items} consumableModels={consumableModels} enableScan />
               </div>
 
               <FormField

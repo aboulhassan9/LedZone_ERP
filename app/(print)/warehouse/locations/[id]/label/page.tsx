@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
-import { requirePermission } from "@/lib/auth/permissions";
+import { requirePermission, hasPermission } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { PrintButton } from "@/modules/warehouse/components/locations/print-button";
 
 export default async function LocationLabelPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission("warehouse.view");
   const { id } = await params;
+  const canPrint = (await hasPermission("warehouse.manage")) || (await hasPermission("warehouse.labels"));
 
   const supabase = await createClient();
   const [{ data: location }, { data: codes }] = await Promise.all([
@@ -32,7 +33,7 @@ export default async function LocationLabelPage({ params }: { params: Promise<{ 
     <div className="mx-auto flex max-w-md flex-col items-center gap-4">
       <div className="flex w-full items-center justify-between print:hidden">
         <h1 className="text-lg font-semibold">Location label</h1>
-        <PrintButton />
+        <PrintButton canPrint={canPrint} />
       </div>
 
       <div className="flex w-full flex-col items-center gap-3 rounded-md border p-6 text-center print:border-0">

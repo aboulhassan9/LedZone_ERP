@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/auth/permissions";
+import { requirePermission, hasPermission } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { PrintButton } from "@/modules/warehouse/components/locations/print-button";
 
@@ -9,6 +9,7 @@ export default async function BatchLocationLabelsPage({
 }) {
   await requirePermission("warehouse.view");
   const { warehouseId } = await searchParams;
+  const canPrint = (await hasPermission("warehouse.manage")) || (await hasPermission("warehouse.labels"));
 
   if (!warehouseId) {
     return <p className="text-muted-foreground text-sm">No warehouse selected.</p>;
@@ -49,7 +50,7 @@ export default async function BatchLocationLabelsPage({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between print:hidden">
         <h1 className="text-lg font-semibold">{warehouse?.name ?? "Warehouse"} — location labels</h1>
-        <PrintButton />
+        <PrintButton canPrint={canPrint} />
       </div>
 
       {labeled.length === 0 ? (

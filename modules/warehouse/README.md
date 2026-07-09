@@ -4,7 +4,7 @@ Multi-warehouse layout (Zone/Row/Rack/Shelf/Bin + staging/loading/repair/quarant
 transfers, receiving, dispatch, picking, cycle counts, reservations, and documents, built on
 top of the Inventory Foundation's `equipment_items`/`consumable_stock_levels`.
 
-Database + RLS + transactional functions: `supabase/migrations/0027-0042`.
+Database + RLS + transactional functions: `supabase/migrations/0027-0044`.
 Service layer (this module): `schemas/ -> repositories/ -> services/ -> actions/`, mirroring
 `modules/inventory/`'s shape.
 
@@ -15,4 +15,11 @@ wraps for warehouse-triggered movement types — never a direct table write. See
 `warehouse-transfer-service.ts`'s `executeTransfer` for the fullest explanation of that
 boundary.
 
-UI not yet implemented — Module 3.3.
+QR/barcode operations (location labels, scan-to-navigate, scan-to-fill, bulk move by scan):
+Module 3.4, `supabase/migrations/0044`.
+
+UI: Module 3.3 (`app/(dashboard)/warehouse/*`) + Module 3.4 (`app/(print)/warehouse/*`).
+
+Full documentation set (architecture, ERD, service/API reference, user/admin/deployment
+guides, the Module 3.5 testing report, known limitations, future enhancements, and a
+live-testing handoff checklist): `docs/warehouse/`.

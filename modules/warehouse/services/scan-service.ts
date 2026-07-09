@@ -1,5 +1,6 @@
 import "server-only";
 import { assertAnyPermission } from "@/modules/warehouse/shared/authorize";
+import { logWarehouseAudit } from "@/modules/warehouse/shared/audit";
 import { ValidationError } from "@/modules/warehouse/errors";
 import { warehouseLocationCodeRepository } from "@/modules/warehouse/repositories/warehouse-location-code-repository";
 import { warehouseLocationRepository, type WarehouseLocationRow } from "@/modules/warehouse/repositories/warehouse-location-repository";
@@ -16,6 +17,8 @@ export type ScanResult =
 // don't overlap in practice, so trying location first then item is safe and cheap (two
 // indexed lookups, no ambiguity to resolve). Read-only: warehouse.view is enough to scan and
 // navigate; the narrower warehouse.qr.scan key is honored too for staff who only hold that.
+// Every scan is audited (including not_found — a scanner reading garbage/spoofed input is
+// itself worth a record), same as every other warehouse action.
 async function resolveScan(codeValue: string): Promise<ScanResult> {
   await assertAnyPermission(["warehouse.manage", "warehouse.qr.scan", "warehouse.view"]);
 
@@ -25,12 +28,23 @@ async function resolveScan(codeValue: string): Promise<ScanResult> {
   const locationCode = await warehouseLocationCodeRepository.findByCodeValue(trimmed);
   if (locationCode) {
     const location = await warehouseLocationRepository.findById(locationCode.warehouse_location_id);
-    if (location) return { type: "location", location };
+    if (location) {
+      await logWarehouseAudit("warehouse_location.scanned", "warehouse_locations", location.id, {
+        codeValue: trimmed,
+      });
+      return { type: "location", location };
+    }
   }
 
   const item = await equipmentItemRepository.findByAssetTag(trimmed);
-  if (item) return { type: "item", item };
+  if (item) {
+    await logWarehouseAudit("equipment_item.scanned", "equipment_items", item.id, {
+      codeValue: trimmed,
+    });
+    return { type: "item", item };
+  }
 
+  await logWarehouseAudit("warehouse_scan.not_found", "warehouse_scan", null, { codeValue: trimmed });
   return { type: "not_found" };
 }
 

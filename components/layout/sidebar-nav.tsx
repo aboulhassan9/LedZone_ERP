@@ -31,6 +31,8 @@ import {
   CalendarRange,
   Users2,
   Car,
+  Contact,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -59,6 +61,14 @@ const SECTIONS: NavSection[] = [
       { href: "/settings/profile", label: "Profile", icon: User },
       { href: "/settings/notifications", label: "Notifications", icon: Bell },
       { href: "/settings/files", label: "Files", icon: FolderOpen },
+    ],
+  },
+  {
+    title: "CRM",
+    items: [
+      { href: "/crm", label: "Dashboard", icon: LayoutDashboard, permission: "crm.view" },
+      { href: "/crm/customers", label: "Customers", icon: Contact, permission: "crm.view" },
+      { href: "/crm/quotes", label: "Quotes", icon: FileText, permission: "crm.view" },
     ],
   },
   {

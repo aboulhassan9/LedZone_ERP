@@ -158,6 +158,7 @@ model Currency {
   itemValuations               EquipmentItemValuation[]
   maintenanceRecords           EquipmentMaintenanceRecord[]
   damageReports                EquipmentDamageReport[]
+  quotes                       Quote[]
 
   @@map("currencies")
 }
@@ -386,6 +387,7 @@ model EquipmentModel {
   warehouseCycleCountLines WarehouseCycleCountLine[]
 
   equipmentPlanItems EquipmentPlanItem[]
+  quoteLineItems     QuoteLineItem[]
 
   @@map("equipment_models")
 }
@@ -1309,4 +1311,89 @@ model EquipmentPlanVersion {
 
   @@unique([planId, versionNumber])
   @@map("equipment_plan_versions")
+}
+
+// ---- Module 5: CRM ----
+
+model Customer {
+  id              String    @id @default(uuid()) @db.Uuid
+  customerType    String    @default("company") @map("customer_type")
+  lifecycleStage  String    @default("lead") @map("lifecycle_stage")
+  companyName     String?   @map("company_name")
+  fullName        String?   @map("full_name")
+  email           String?
+  phone           String?
+  billingAddress  String?   @map("billing_address")
+  taxId           String?   @map("tax_id")
+  source          String?
+  assignedTo      String?   @map("assigned_to") @db.Uuid
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+
+  contacts CustomerContact[]
+  quotes   Quote[]
+
+  @@map("customers")
+}
+
+model CustomerContact {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  fullName   String   @map("full_name")
+  role       String?
+  email      String?
+  phone      String?
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy  String?  @map("created_by") @db.Uuid
+  updatedBy  String?  @map("updated_by") @db.Uuid
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("customer_contacts")
+}
+
+model Quote {
+  id             String    @id @default(uuid()) @db.Uuid
+  quoteNumber    String    @unique @map("quote_number")
+  customerId     String    @map("customer_id") @db.Uuid
+  status         String    @default("draft")
+  validUntil     DateTime? @map("valid_until") @db.Date
+  currencyCode   String    @map("currency_code")
+  eventReference String?   @map("event_reference")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  currency Currency @relation(fields: [currencyCode], references: [code])
+
+  lineItems QuoteLineItem[]
+
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  quoteId   String   @map("quote_id") @db.Uuid
+  modelId   String   @map("model_id") @db.Uuid
+  quantity  Decimal  @db.Decimal(14, 2)
+  unitPrice Decimal  @map("unit_price") @db.Decimal(14, 2)
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  quote Quote          @relation(fields: [quoteId], references: [id])
+  model EquipmentModel @relation(fields: [modelId], references: [id])
+
+  @@map("quote_line_items")
 }

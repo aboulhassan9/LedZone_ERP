@@ -143,6 +143,31 @@ export const equipmentItemRepository = {
     return data;
   },
 
+  // Transactional: Module 4 (Planning) Prepare/Cancel/Complete stages -- status-only, no
+  // location change. See supabase/migrations/0054_planning_lifecycle_functions.sql.
+  async reserveViaTransaction(itemId: string): Promise<EquipmentItemMovementRow> {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("reserve_equipment_item", { p_item_id: itemId });
+    if (error) throw error;
+    return data;
+  },
+
+  async releaseReservationViaTransaction(itemId: string): Promise<EquipmentItemMovementRow> {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("release_equipment_item_reservation", {
+      p_item_id: itemId,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async returnViaTransaction(itemId: string): Promise<EquipmentItemMovementRow> {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("return_equipment_item", { p_item_id: itemId });
+    if (error) throw error;
+    return data;
+  },
+
   // Transactional: moves every item in itemIds to the same destination bin in one batch.
   async recordBulkMoveViaTransaction(
     itemIds: string[],

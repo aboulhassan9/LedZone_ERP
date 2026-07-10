@@ -325,6 +325,57 @@ async function scrapEquipmentItem(
   }
 }
 
+// --- Module 4 (Planning)-triggered lifecycle changes ---------------------------------------
+// Same EquipmentLifecycleService boundary as everything else in this file — Planning never
+// writes equipment_items directly, it calls these three methods. Status-only, no location
+// change (mirrors 'transfer's same-location no-op pattern) — see
+// supabase/migrations/0054_planning_lifecycle_functions.sql.
+
+async function reserveEquipmentItem(id: string): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["planning.prepare", "planning.manage"]);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "reserved", (m) => new ConflictError(m));
+
+  try {
+    const movement = await equipmentItemRepository.reserveViaTransaction(id);
+    await logInventoryAudit("equipment_item.reserved", "equipment_items", id, {});
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function releaseReservedEquipmentItem(id: string): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["planning.cancel", "planning.manage"]);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "available", (m) => new ConflictError(m));
+
+  try {
+    const movement = await equipmentItemRepository.releaseReservationViaTransaction(id);
+    await logInventoryAudit("equipment_item.reservation_released", "equipment_items", id, {});
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
+async function returnEquipmentItem(id: string): Promise<EquipmentItemMovementRow> {
+  await assertAnyPermission(["planning.complete", "planning.manage"]);
+  const item = await requireItem(id);
+
+  assertEquipmentStatusTransition(item.current_status, "returned", (m) => new ConflictError(m));
+
+  try {
+    const movement = await equipmentItemRepository.returnViaTransaction(id);
+    await logInventoryAudit("equipment_item.returned", "equipment_items", id, {});
+    return movement;
+  } catch (error) {
+    throw toInventoryError(error, "Equipment item");
+  }
+}
+
 async function bulkMoveEquipmentItems(
   input: BulkWarehouseMoveInput
 ): Promise<EquipmentItemMovementRow[]> {
@@ -360,4 +411,7 @@ export const equipmentItemService = {
   releaseFromQuarantineEquipmentItem,
   scrapEquipmentItem,
   bulkMoveEquipmentItems,
+  reserveEquipmentItem,
+  releaseReservedEquipmentItem,
+  returnEquipmentItem,
 };

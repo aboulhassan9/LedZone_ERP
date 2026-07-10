@@ -51,8 +51,10 @@ IP/device capture and `changes` isn't a structured before/after diff — see
 
 ## Known operational gaps to be aware of
 
-See `07-testing-report.md` and `08-known-limitations.md` for the full list — the two most
-operationally relevant: (1) several status transitions (quarantine, release, scrap,
-put-away, and receiving/dispatch line completion) don't re-validate an item's current
-status at the moment of the write, only permission; (2) a rare race window exists where two
-concurrent reservation requests for the same item could both succeed.
+See `07-testing-report.md` and `08-known-limitations.md` for the full list. The two
+previously most operationally relevant items — status transitions not being re-validated
+at write time, and a reservation race window — are fixed (an explicit state machine and a
+database-level unique constraint respectively; see `07-testing-report.md`'s addendum).
+Remaining open items are lower-impact: no IP/device audit capture, seven not-yet-wired
+permission keys, no automated test suite, and no camera-based scanning — see
+`08-known-limitations.md` for the complete list.

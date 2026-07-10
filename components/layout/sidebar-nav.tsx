@@ -28,6 +28,9 @@ import {
   CalendarClock,
   ClipboardCheck,
   ScanLine,
+  CalendarRange,
+  Users2,
+  Car,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -92,6 +95,15 @@ const SECTIONS: NavSection[] = [
       { href: "/warehouse/reservations", label: "Reservations", icon: CalendarClock, permission: "warehouse.view" },
       { href: "/warehouse/cycle-counts", label: "Cycle Counts", icon: ClipboardCheck, permission: "warehouse.view" },
       { href: "/warehouse/bulk-move", label: "Bulk Move", icon: Boxes, permission: "warehouse.view" },
+    ],
+  },
+  {
+    title: "Planning",
+    items: [
+      { href: "/planning", label: "Dashboard", icon: LayoutDashboard, permission: "planning.view" },
+      { href: "/planning/plans", label: "Equipment Plans", icon: CalendarRange, permission: "planning.view" },
+      { href: "/planning/crew", label: "Crew", icon: Users2, permission: "planning.view" },
+      { href: "/planning/vehicles", label: "Vehicles", icon: Car, permission: "planning.view" },
     ],
   },
   {

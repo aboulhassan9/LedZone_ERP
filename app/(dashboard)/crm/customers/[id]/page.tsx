@@ -29,7 +29,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       .order("is_primary", { ascending: false }),
     supabase
       .from("quotes")
-      .select("id, quote_number, customer_id, status, valid_until, currency_code, event_reference, notes, created_at, updated_at")
+      .select("id, quote_number, customer_id, status, valid_until, currency_code, event_id, notes, created_at, updated_at")
       .eq("customer_id", id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),

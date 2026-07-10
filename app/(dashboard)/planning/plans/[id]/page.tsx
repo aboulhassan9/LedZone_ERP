@@ -8,7 +8,7 @@ import type { ResourceAssignmentRow, CrewMemberRow, VehicleRow } from "@/modules
 import type { WarehouseRow } from "@/modules/warehouse/repositories/warehouse-repository";
 
 const PLAN_COLUMNS =
-  "id, name, event_start_at, event_end_at, customer_reference, event_reference, status, primary_warehouse_id, notes, approved_by, approved_at, created_at, updated_at";
+  "id, name, event_start_at, event_end_at, customer_id, event_id, status, primary_warehouse_id, notes, approved_by, approved_at, created_at, updated_at";
 
 export default async function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission("planning.view");
@@ -62,6 +62,17 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
   const modelRows = (models ?? []) as { id: string; model_name: string }[];
   const modelNames = Object.fromEntries(modelRows.map((m) => [m.id, m.model_name]));
 
+  const [{ data: customer }, { data: event }] = await Promise.all([
+    planRow.customer_id
+      ? supabase.from("customers").select("id, company_name, full_name").eq("id", planRow.customer_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    planRow.event_id
+      ? supabase.from("events").select("id, name").eq("id", planRow.event_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const customerName = customer ? (customer.company_name ?? customer.full_name ?? "—") : null;
+  const eventName = event?.name ?? null;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -80,6 +91,8 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
         warehouses={warehouseRows as WarehouseRow[]}
         modelNames={modelNames}
         warehouseNames={warehouseNames}
+        customerName={customerName}
+        eventName={eventName}
       />
     </div>
   );

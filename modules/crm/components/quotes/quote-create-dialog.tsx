@@ -27,16 +27,19 @@ import { createQuoteAction } from "@/modules/crm/actions/quote-actions";
 
 export type CustomerOption = { id: string; label: string };
 export type CurrencyOption = { code: string; label: string };
+export type EventOption = { id: string; label: string };
 
 export function QuoteCreateDialog({
   customers,
   currencies,
   models,
+  events,
   defaultCustomerId,
 }: {
   customers: CustomerOption[];
   currencies: CurrencyOption[];
   models: ModelOption[];
+  events: EventOption[];
   defaultCustomerId?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -144,13 +147,28 @@ export function QuoteCreateDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="eventReference"
+                  name="eventId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Event reference</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value ?? ""} />
-                      </FormControl>
+                      <FormLabel>Event</FormLabel>
+                      <Select
+                        value={field.value ?? "none"}
+                        onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Unset" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Unset</SelectItem>
+                          {events.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

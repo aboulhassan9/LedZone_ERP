@@ -12,8 +12,8 @@ export type EquipmentPlanRow = {
   name: string;
   event_start_at: string;
   event_end_at: string;
-  customer_reference: string | null;
-  event_reference: string | null;
+  customer_id: string | null;
+  event_id: string | null;
   status: string;
   primary_warehouse_id: string | null;
   notes: string | null;
@@ -35,7 +35,7 @@ export type EquipmentPlanItemRow = {
 };
 
 const PLAN_COLUMNS =
-  "id, name, event_start_at, event_end_at, customer_reference, event_reference, status, primary_warehouse_id, notes, approved_by, approved_at, created_at, updated_at";
+  "id, name, event_start_at, event_end_at, customer_id, event_id, status, primary_warehouse_id, notes, approved_by, approved_at, created_at, updated_at";
 const PLAN_ITEM_COLUMNS =
   "id, plan_id, model_id, quantity_requested, warehouse_id, notes, created_at, updated_at";
 
@@ -70,8 +70,8 @@ export const equipmentPlanRepository = {
         name: input.name,
         event_start_at: input.eventStartAt,
         event_end_at: input.eventEndAt,
-        customer_reference: input.customerReference ?? null,
-        event_reference: input.eventReference ?? null,
+        customer_id: input.customerId ?? null,
+        event_id: input.eventId ?? null,
         primary_warehouse_id: input.primaryWarehouseId ?? null,
         notes: input.notes ?? null,
         status: "draft",
@@ -90,8 +90,8 @@ export const equipmentPlanRepository = {
     if (input.name !== undefined) patch.name = input.name;
     if (input.eventStartAt !== undefined) patch.event_start_at = input.eventStartAt;
     if (input.eventEndAt !== undefined) patch.event_end_at = input.eventEndAt;
-    if (input.customerReference !== undefined) patch.customer_reference = input.customerReference;
-    if (input.eventReference !== undefined) patch.event_reference = input.eventReference;
+    if (input.customerId !== undefined) patch.customer_id = input.customerId;
+    if (input.eventId !== undefined) patch.event_id = input.eventId;
     if (input.primaryWarehouseId !== undefined) patch.primary_warehouse_id = input.primaryWarehouseId;
     if (input.notes !== undefined) patch.notes = input.notes;
 

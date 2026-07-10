@@ -14,7 +14,7 @@ export const createQuoteSchema = z.object({
   customerId: z.string().uuid("Select a customer"),
   currencyCode: z.string().min(1, "Select a currency"),
   validUntil: z.string().optional(),
-  eventReference: z.string().max(300).optional(),
+  eventId: z.string().uuid().optional(),
   notes: z.string().max(2000).optional(),
   lineItems: z.array(quoteLineItemInputSchema).min(1, "Add at least one line item"),
 });
@@ -22,7 +22,7 @@ export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 
 export const updateQuoteSchema = z.object({
   validUntil: z.string().optional(),
-  eventReference: z.string().max(300).optional(),
+  eventId: z.string().uuid().optional(),
   notes: z.string().max(2000).optional(),
 });
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;

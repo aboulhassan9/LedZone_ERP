@@ -9,7 +9,7 @@ export type QuoteRow = {
   status: string;
   valid_until: string | null;
   currency_code: string;
-  event_reference: string | null;
+  event_id: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -25,7 +25,7 @@ export type QuoteLineItemRow = {
 };
 
 const QUOTE_COLUMNS =
-  "id, quote_number, customer_id, status, valid_until, currency_code, event_reference, notes, created_at, updated_at";
+  "id, quote_number, customer_id, status, valid_until, currency_code, event_id, notes, created_at, updated_at";
 const LINE_ITEM_COLUMNS = "id, quote_id, model_id, quantity, unit_price, notes";
 
 export const quoteRepository = {
@@ -66,7 +66,7 @@ export const quoteRepository = {
         customer_id: input.customerId,
         currency_code: input.currencyCode,
         valid_until: input.validUntil ?? null,
-        event_reference: input.eventReference ?? null,
+        event_id: input.eventId ?? null,
         notes: input.notes ?? null,
         status: "draft",
         created_by: userId,
@@ -113,7 +113,7 @@ export const quoteRepository = {
     const supabase = await createClient();
     const patch: Record<string, unknown> = { updated_by: userId };
     if (input.validUntil !== undefined) patch.valid_until = input.validUntil;
-    if (input.eventReference !== undefined) patch.event_reference = input.eventReference;
+    if (input.eventId !== undefined) patch.event_id = input.eventId;
     if (input.notes !== undefined) patch.notes = input.notes;
 
     const { data, error } = await supabase

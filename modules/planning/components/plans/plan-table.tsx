@@ -11,9 +11,11 @@ import type { EquipmentPlanRow } from "@/modules/planning/repositories/equipment
 export function PlanTable({
   plans,
   warehouseNames,
+  customerNames,
 }: {
   plans: EquipmentPlanRow[];
   warehouseNames: Record<string, string>;
+  customerNames: Record<string, string>;
 }) {
   const columns = useMemo<ColumnDef<EquipmentPlanRow>[]>(
     () => [
@@ -48,12 +50,12 @@ export function PlanTable({
         cell: ({ row }) => <PlanStatusBadge status={row.original.status} />,
       },
       {
-        accessorKey: "customer_reference",
+        id: "customer",
         header: "Customer",
-        cell: ({ row }) => row.original.customer_reference ?? "—",
+        accessorFn: (row) => (row.customer_id ? customerNames[row.customer_id] ?? "—" : "—"),
       },
     ],
-    [warehouseNames]
+    [warehouseNames, customerNames]
   );
 
   return <DataTable columns={columns} data={plans} searchKey="name" searchPlaceholder="Search plans..." />;

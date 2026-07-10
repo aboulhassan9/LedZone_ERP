@@ -16,8 +16,8 @@ export const createEquipmentPlanSchema = z
     name: z.string().min(1, "Name is required").max(300),
     eventStartAt: z.string().datetime({ message: "eventStartAt must be an ISO timestamp" }),
     eventEndAt: z.string().datetime({ message: "eventEndAt must be an ISO timestamp" }),
-    customerReference: z.string().max(300).optional(),
-    eventReference: z.string().max(300).optional(),
+    customerId: z.string().uuid().optional(),
+    eventId: z.string().uuid().optional(),
     primaryWarehouseId: z.string().uuid().optional(),
     notes: z.string().max(2000).optional(),
   })
@@ -32,8 +32,8 @@ export const updateEquipmentPlanSchema = z
     name: z.string().min(1).max(300).optional(),
     eventStartAt: z.string().datetime().optional(),
     eventEndAt: z.string().datetime().optional(),
-    customerReference: z.string().max(300).optional(),
-    eventReference: z.string().max(300).optional(),
+    customerId: z.string().uuid().optional(),
+    eventId: z.string().uuid().optional(),
     primaryWarehouseId: z.string().uuid().optional(),
     notes: z.string().max(2000).optional(),
   })

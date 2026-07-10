@@ -8,11 +8,11 @@ export default async function QuotesPage() {
   await requirePermission("crm.view");
 
   const supabase = await createClient();
-  const [{ data: quotes }, { data: customers }, { data: currencies }, { data: models }, canManage] =
+  const [{ data: quotes }, { data: customers }, { data: currencies }, { data: models }, { data: events }, canManage] =
     await Promise.all([
       supabase
         .from("quotes")
-        .select("id, quote_number, customer_id, status, valid_until, currency_code, event_reference, notes, created_at, updated_at")
+        .select("id, quote_number, customer_id, status, valid_until, currency_code, event_id, notes, created_at, updated_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
@@ -22,6 +22,7 @@ export default async function QuotesPage() {
         .order("company_name"),
       supabase.from("currencies").select("code, name").eq("is_active", true).order("code"),
       supabase.from("equipment_models").select("id, model_name").is("deleted_at", null).eq("status", "active").order("model_name"),
+      supabase.from("events").select("id, name").is("deleted_at", null).order("event_start_at", { ascending: false }),
       hasPermission("crm.manage").then((v) => v || hasPermission("crm.quotes.manage")),
     ]);
 
@@ -42,6 +43,7 @@ export default async function QuotesPage() {
             customers={customerRows.map((c) => ({ id: c.id, label: c.company_name ?? c.full_name ?? "—" }))}
             currencies={(currencies ?? []).map((c) => ({ code: c.code, label: `${c.code} — ${c.name}` }))}
             models={(models ?? []).map((m) => ({ id: m.id, label: m.model_name }))}
+            events={(events ?? []).map((e) => ({ id: e.id, label: e.name }))}
           />
         )}
       </div>

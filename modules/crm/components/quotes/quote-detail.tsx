@@ -16,11 +16,13 @@ export function QuoteDetail({
   quote,
   lineItems,
   customerName,
+  eventName,
   modelNames,
 }: {
   quote: QuoteRow;
   lineItems: QuoteLineItemRow[];
   customerName: string;
+  eventName: string | null;
   modelNames: Record<string, string>;
 }) {
   const { hasPermission } = useAuth();
@@ -114,8 +116,8 @@ export function QuoteDetail({
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Event reference</dt>
-              <dd className="font-medium">{quote.event_reference ?? "—"}</dd>
+              <dt className="text-muted-foreground">Event</dt>
+              <dd className="font-medium">{eventName ?? "—"}</dd>
             </div>
           </dl>
           {quote.notes && <p className="text-muted-foreground mt-4 text-sm">{quote.notes}</p>}

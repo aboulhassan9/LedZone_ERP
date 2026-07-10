@@ -82,6 +82,8 @@ export function PlanDetail({
   warehouses,
   modelNames,
   warehouseNames,
+  customerName,
+  eventName,
 }: {
   plan: EquipmentPlanRow;
   items: EquipmentPlanItemRow[];
@@ -94,6 +96,8 @@ export function PlanDetail({
   warehouses: WarehouseRow[];
   modelNames: Record<string, string>;
   warehouseNames: Record<string, string>;
+  customerName: string | null;
+  eventName: string | null;
 }) {
   const { hasPermission } = useAuth();
   const router = useRouter();
@@ -206,7 +210,11 @@ export function PlanDetail({
             </div>
             <div>
               <dt className="text-muted-foreground">Customer</dt>
-              <dd className="font-medium">{plan.customer_reference ?? "—"}</dd>
+              <dd className="font-medium">{customerName ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Event</dt>
+              <dd className="font-medium">{eventName ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Approved</dt>

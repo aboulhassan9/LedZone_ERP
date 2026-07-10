@@ -28,12 +28,23 @@ import {
 import { createPlanAction } from "@/modules/planning/actions/plan-actions";
 import type { WarehouseRow } from "@/modules/warehouse/repositories/warehouse-repository";
 
+export type CustomerOption = { id: string; label: string };
+export type EventOption = { id: string; label: string };
+
 function toDatetimeLocal(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function PlanCreateDialog({ warehouses }: { warehouses: WarehouseRow[] }) {
+export function PlanCreateDialog({
+  warehouses,
+  customers,
+  events,
+}: {
+  warehouses: WarehouseRow[];
+  customers: CustomerOption[];
+  events: EventOption[];
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -149,26 +160,56 @@ export function PlanCreateDialog({ warehouses }: { warehouses: WarehouseRow[] })
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="customerReference"
+                name="customerId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} />
-                    </FormControl>
+                    <Select
+                      value={field.value ?? "none"}
+                      onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Unset" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Unset</SelectItem>
+                        {customers.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="eventReference"
+                name="eventId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Event reference</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} />
-                    </FormControl>
+                    <FormLabel>Event</FormLabel>
+                    <Select
+                      value={field.value ?? "none"}
+                      onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Unset" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Unset</SelectItem>
+                        {events.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -166,6 +166,7 @@ model Currency {
   vehicleFuelLogs              VehicleFuelLog[]
   crewMembers                  CrewMember[]
   payrollRecords               PayrollRecord[]
+  financialReports             FinancialReport[]
 
   @@map("currencies")
 }
@@ -1778,4 +1779,27 @@ model DocumentSignature {
   document Document @relation(fields: [documentId], references: [id])
 
   @@map("document_signatures")
+}
+
+// ---- Module 12: Reports — persisted financial snapshots ----
+
+model FinancialReport {
+  id             String   @id @default(uuid()) @db.Uuid
+  periodType     String   @map("period_type")
+  periodStart    DateTime @map("period_start") @db.Date
+  periodEnd      DateTime @map("period_end") @db.Date
+  currencyCode   String   @map("currency_code")
+  totalIncome    Decimal  @default(0) @map("total_income") @db.Decimal(14, 2)
+  totalExpenses  Decimal  @default(0) @map("total_expenses") @db.Decimal(14, 2)
+  netAmount      Decimal  @default(0) @map("net_amount") @db.Decimal(14, 2)
+  paymentCount   Int      @default(0) @map("payment_count")
+  expenseCount   Int      @default(0) @map("expense_count")
+  generatedAt    DateTime @default(now()) @map("generated_at") @db.Timestamptz
+  generatedBy    String?  @map("generated_by") @db.Uuid
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  currency Currency @relation(fields: [currencyCode], references: [code])
+
+  @@map("financial_reports")
 }

@@ -23,4 +23,9 @@ bills for.
 **Expenses**: `draft -> approved -> paid`, cancellable from draft/approved. A single-line company
 cost record, optionally tied to the event it was incurred for.
 
+Every invoice, payment, and expense here is a real Postgres row — nothing in this module is
+computed on the fly and discarded. Weekly/monthly income-vs-expense **reports** built from this
+data (generated automatically or on demand) are Reports' job, not this module's — see
+`modules/reports/README.md`'s "Financial history" section.
+
 UI: `app/(dashboard)/finance/*`.

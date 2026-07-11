@@ -6,6 +6,11 @@ const REPORTS = [
   { href: "/reports/inventory", title: "Inventory utilization", description: "Equipment status breakdown and per-model utilization." },
   { href: "/reports/financials", title: "Financials", description: "Revenue from paid invoices vs. approved/paid expenses, by currency." },
   { href: "/reports/event-profitability", title: "Event profitability", description: "Revenue minus cost per event, by currency." },
+  {
+    href: "/reports/financial-history",
+    title: "Financial history",
+    description: "Persisted weekly/monthly income vs. expense reports, generated automatically or on demand.",
+  },
 ];
 
 export default async function ReportsPage() {

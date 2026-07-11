@@ -159,6 +159,7 @@ model Currency {
   maintenanceRecords           EquipmentMaintenanceRecord[]
   damageReports                EquipmentDamageReport[]
   quotes                       Quote[]
+  rentalAgreements             RentalAgreement[]
 
   @@map("currencies")
 }
@@ -386,8 +387,9 @@ model EquipmentModel {
   warehousePickListLines   WarehousePickListLine[]
   warehouseCycleCountLines WarehouseCycleCountLine[]
 
-  equipmentPlanItems EquipmentPlanItem[]
-  quoteLineItems     QuoteLineItem[]
+  equipmentPlanItems       EquipmentPlanItem[]
+  quoteLineItems           QuoteLineItem[]
+  rentalAgreementLineItems RentalAgreementLineItem[]
 
   @@map("equipment_models")
 }
@@ -1337,10 +1339,11 @@ model Customer {
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
   deletedBy       String?   @map("deleted_by") @db.Uuid
 
-  contacts       CustomerContact[]
-  quotes         Quote[]
-  equipmentPlans EquipmentPlan[]
-  events         Event[]
+  contacts         CustomerContact[]
+  quotes           Quote[]
+  equipmentPlans   EquipmentPlan[]
+  events           Event[]
+  rentalAgreements RentalAgreement[]
 
   @@map("customers")
 }
@@ -1383,7 +1386,8 @@ model Quote {
   currency Currency @relation(fields: [currencyCode], references: [code])
   event    Event?   @relation(fields: [eventId], references: [id])
 
-  lineItems QuoteLineItem[]
+  lineItems        QuoteLineItem[]
+  rentalAgreements RentalAgreement[]
 
   @@map("quotes")
 }
@@ -1423,10 +1427,11 @@ model Event {
 
   customer Customer? @relation(fields: [customerId], references: [id])
 
-  checklistItems EventChecklistItem[]
-  timelineItems  EventTimelineItem[]
-  equipmentPlans EquipmentPlan[]
-  quotes         Quote[]
+  checklistItems   EventChecklistItem[]
+  timelineItems    EventTimelineItem[]
+  equipmentPlans   EquipmentPlan[]
+  quotes           Quote[]
+  rentalAgreements RentalAgreement[]
 
   @@map("events")
 }
@@ -1466,4 +1471,51 @@ model EventTimelineItem {
   event Event @relation(fields: [eventId], references: [id])
 
   @@map("event_timeline_items")
+}
+
+// ---- Module 7: Rental ----
+
+model RentalAgreement {
+  id              String    @id @default(uuid()) @db.Uuid
+  agreementNumber String    @unique @map("agreement_number")
+  customerId      String    @map("customer_id") @db.Uuid
+  eventId         String?   @map("event_id") @db.Uuid
+  quoteId         String?   @map("quote_id") @db.Uuid
+  status          String    @default("draft")
+  currencyCode    String    @map("currency_code")
+  rentalStartAt   DateTime  @map("rental_start_at") @db.Timestamptz
+  rentalEndAt     DateTime  @map("rental_end_at") @db.Timestamptz
+  depositAmount   Decimal   @default(0) @map("deposit_amount") @db.Decimal(14, 2)
+  depositStatus   String    @default("held") @map("deposit_status")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  event    Event?   @relation(fields: [eventId], references: [id])
+  quote    Quote?   @relation(fields: [quoteId], references: [id])
+  currency Currency @relation(fields: [currencyCode], references: [code])
+
+  lineItems RentalAgreementLineItem[]
+
+  @@map("rental_agreements")
+}
+
+model RentalAgreementLineItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  agreementId String   @map("agreement_id") @db.Uuid
+  modelId     String   @map("model_id") @db.Uuid
+  quantity    Decimal  @db.Decimal(14, 2)
+  dailyRate   Decimal  @map("daily_rate") @db.Decimal(14, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  agreement RentalAgreement @relation(fields: [agreementId], references: [id])
+  model     EquipmentModel  @relation(fields: [modelId], references: [id])
+
+  @@map("rental_agreement_line_items")
 }

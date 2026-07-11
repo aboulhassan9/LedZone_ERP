@@ -38,6 +38,7 @@ import {
   Receipt,
   Wallet,
   Wrench,
+  UserSquare2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,10 @@ const SECTIONS: NavSection[] = [
   {
     title: "Fleet",
     items: [{ href: "/fleet", label: "Vehicles", icon: Wrench, permission: "fleet.view" }],
+  },
+  {
+    title: "HR",
+    items: [{ href: "/hr", label: "Employees", icon: UserSquare2, permission: "hr.view" }],
   },
   {
     title: "Administration",

@@ -164,6 +164,8 @@ model Currency {
   expenses                     Expense[]
   vehicleMaintenanceRecords    VehicleMaintenanceRecord[]
   vehicleFuelLogs              VehicleFuelLog[]
+  crewMembers                  CrewMember[]
+  payrollRecords               PayrollRecord[]
 
   @@map("currencies")
 }
@@ -1198,20 +1200,32 @@ model EquipmentPlanItem {
 }
 
 model CrewMember {
-  id        String    @id @default(uuid()) @db.Uuid
-  fullName  String    @map("full_name")
-  role      String?
-  phone     String?
-  email     String?
-  isActive  Boolean   @default(true) @map("is_active")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz
-  createdBy String?   @map("created_by") @db.Uuid
-  updatedBy String?   @map("updated_by") @db.Uuid
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
-  deletedBy String?   @map("deleted_by") @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
+  fullName           String    @map("full_name")
+  role               String?
+  phone              String?
+  email              String?
+  isActive           Boolean   @default(true) @map("is_active")
+  employeeNumber     String?   @map("employee_number")
+  hireDate           DateTime? @map("hire_date") @db.Date
+  employmentType     String?   @map("employment_type")
+  baseSalary         Decimal?  @map("base_salary") @db.Decimal(14, 2)
+  salaryCurrencyCode String?   @map("salary_currency_code")
+  hrStatus           String    @default("active") @map("hr_status")
+  terminationDate    DateTime? @map("termination_date") @db.Date
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy          String?   @map("created_by") @db.Uuid
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy          String?   @map("deleted_by") @db.Uuid
 
   resourceAssignments ResourceAssignment[]
+  salaryCurrency      Currency?             @relation(fields: [salaryCurrencyCode], references: [code])
+  leaveRequests       LeaveRequest[]
+  payrollRecords      PayrollRecord[]
+  performanceReviews  PerformanceReview[]
 
   @@map("crew_members")
 }
@@ -1665,4 +1679,63 @@ model VehicleFuelLog {
   currency Currency @relation(fields: [currencyCode], references: [code])
 
   @@map("vehicle_fuel_logs")
+}
+
+// ---- Module 10: HR ----
+
+model LeaveRequest {
+  id           String   @id @default(uuid()) @db.Uuid
+  crewMemberId String   @map("crew_member_id") @db.Uuid
+  leaveType    String   @map("leave_type")
+  startDate    DateTime @map("start_date") @db.Date
+  endDate      DateTime @map("end_date") @db.Date
+  status       String   @default("pending")
+  reason       String?
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy    String?  @map("created_by") @db.Uuid
+  updatedBy    String?  @map("updated_by") @db.Uuid
+
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id])
+
+  @@map("leave_requests")
+}
+
+model PayrollRecord {
+  id             String    @id @default(uuid()) @db.Uuid
+  crewMemberId   String    @map("crew_member_id") @db.Uuid
+  payPeriodStart DateTime  @map("pay_period_start") @db.Date
+  payPeriodEnd   DateTime  @map("pay_period_end") @db.Date
+  grossAmount    Decimal   @map("gross_amount") @db.Decimal(14, 2)
+  deductions     Decimal   @default(0) @db.Decimal(14, 2)
+  netAmount      Decimal   @map("net_amount") @db.Decimal(14, 2)
+  currencyCode   String    @map("currency_code")
+  status         String    @default("draft")
+  paymentDate    DateTime? @map("payment_date") @db.Date
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id])
+  currency   Currency   @relation(fields: [currencyCode], references: [code])
+
+  @@map("payroll_records")
+}
+
+model PerformanceReview {
+  id           String   @id @default(uuid()) @db.Uuid
+  crewMemberId String   @map("crew_member_id") @db.Uuid
+  reviewDate   DateTime @default(now()) @map("review_date") @db.Date
+  reviewerId   String?  @map("reviewer_id") @db.Uuid
+  rating       Int?
+  comments     String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id])
+
+  @@map("performance_reviews")
 }

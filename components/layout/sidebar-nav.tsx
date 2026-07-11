@@ -35,6 +35,8 @@ import {
   FileText,
   CalendarDays,
   FileSignature,
+  Receipt,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -125,6 +127,14 @@ const SECTIONS: NavSection[] = [
   {
     title: "Rental",
     items: [{ href: "/rental", label: "Agreements", icon: FileSignature, permission: "rental.view" }],
+  },
+  {
+    title: "Finance",
+    items: [
+      { href: "/finance", label: "Dashboard", icon: LayoutDashboard, permission: "finance.view" },
+      { href: "/finance/invoices", label: "Invoices", icon: Receipt, permission: "finance.view" },
+      { href: "/finance/expenses", label: "Expenses", icon: Wallet, permission: "finance.view" },
+    ],
   },
   {
     title: "Administration",

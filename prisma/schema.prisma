@@ -160,6 +160,8 @@ model Currency {
   damageReports                EquipmentDamageReport[]
   quotes                       Quote[]
   rentalAgreements             RentalAgreement[]
+  invoices                     Invoice[]
+  expenses                     Expense[]
 
   @@map("currencies")
 }
@@ -1344,6 +1346,7 @@ model Customer {
   equipmentPlans   EquipmentPlan[]
   events           Event[]
   rentalAgreements RentalAgreement[]
+  invoices         Invoice[]
 
   @@map("customers")
 }
@@ -1432,6 +1435,8 @@ model Event {
   equipmentPlans   EquipmentPlan[]
   quotes           Quote[]
   rentalAgreements RentalAgreement[]
+  invoices         Invoice[]
+  expenses         Expense[]
 
   @@map("events")
 }
@@ -1501,6 +1506,7 @@ model RentalAgreement {
   currency Currency @relation(fields: [currencyCode], references: [code])
 
   lineItems RentalAgreementLineItem[]
+  invoices  Invoice[]
 
   @@map("rental_agreements")
 }
@@ -1518,4 +1524,89 @@ model RentalAgreementLineItem {
   model     EquipmentModel  @relation(fields: [modelId], references: [id])
 
   @@map("rental_agreement_line_items")
+}
+
+// ---- Module 8: Finance ----
+
+model Invoice {
+  id                 String    @id @default(uuid()) @db.Uuid
+  invoiceNumber      String    @unique @map("invoice_number")
+  customerId         String    @map("customer_id") @db.Uuid
+  eventId            String?   @map("event_id") @db.Uuid
+  rentalAgreementId  String?   @map("rental_agreement_id") @db.Uuid
+  status             String    @default("draft")
+  currencyCode       String    @map("currency_code")
+  issueDate          DateTime  @default(now()) @map("issue_date") @db.Date
+  dueDate            DateTime? @map("due_date") @db.Date
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy          String?   @map("created_by") @db.Uuid
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy          String?   @map("deleted_by") @db.Uuid
+
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  event           Event?           @relation(fields: [eventId], references: [id])
+  rentalAgreement RentalAgreement? @relation(fields: [rentalAgreementId], references: [id])
+  currency        Currency         @relation(fields: [currencyCode], references: [code])
+
+  lineItems InvoiceLineItem[]
+  payments  InvoicePayment[]
+
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(14, 2)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(14, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("invoice_line_items")
+}
+
+model InvoicePayment {
+  id        String   @id @default(uuid()) @db.Uuid
+  invoiceId String   @map("invoice_id") @db.Uuid
+  amount    Decimal  @db.Decimal(14, 2)
+  paidAt    DateTime @default(now()) @map("paid_at") @db.Timestamptz
+  method    String
+  reference String?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("invoice_payments")
+}
+
+model Expense {
+  id          String    @id @default(uuid()) @db.Uuid
+  category    String
+  description String
+  amount      Decimal   @db.Decimal(14, 2)
+  currencyCode String   @map("currency_code")
+  expenseDate DateTime  @default(now()) @map("expense_date") @db.Date
+  eventId     String?   @map("event_id") @db.Uuid
+  vendor      String?
+  status      String    @default("draft")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+
+  currency Currency @relation(fields: [currencyCode], references: [code])
+  event    Event?   @relation(fields: [eventId], references: [id])
+
+  @@map("expenses")
 }

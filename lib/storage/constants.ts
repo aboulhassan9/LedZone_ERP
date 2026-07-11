@@ -3,6 +3,7 @@ export const STORAGE_BUCKETS = {
   uploads: "uploads",
   qrCodes: "qr-codes",
   barcodes: "barcodes",
+  documents: "documents",
 } as const;
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS];

@@ -39,6 +39,7 @@ import {
   Wallet,
   Wrench,
   UserSquare2,
+  FolderClosed,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -145,6 +146,10 @@ const SECTIONS: NavSection[] = [
   {
     title: "HR",
     items: [{ href: "/hr", label: "Employees", icon: UserSquare2, permission: "hr.view" }],
+  },
+  {
+    title: "Documents",
+    items: [{ href: "/documents", label: "Documents", icon: FolderClosed, permission: "documents.view" }],
   },
   {
     title: "Administration",

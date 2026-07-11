@@ -1739,3 +1739,43 @@ model PerformanceReview {
 
   @@map("performance_reviews")
 }
+
+// ---- Module 11: Documents ----
+
+model Document {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  documentType String    @map("document_type")
+  entityType   String?   @map("entity_type")
+  entityId     String?   @map("entity_id") @db.Uuid
+  filePath     String    @map("file_path")
+  fileSize     BigInt?   @map("file_size")
+  mimeType     String?   @map("mime_type")
+  status       String    @default("draft")
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+
+  signatures DocumentSignature[]
+
+  @@map("documents")
+}
+
+model DocumentSignature {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  signerName  String   @map("signer_name")
+  signerEmail String?  @map("signer_email")
+  signedAt    DateTime @default(now()) @map("signed_at") @db.Timestamptz
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@map("document_signatures")
+}

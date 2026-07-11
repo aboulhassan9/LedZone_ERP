@@ -40,6 +40,7 @@ import {
   Wrench,
   UserSquare2,
   FolderClosed,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -150,6 +151,10 @@ const SECTIONS: NavSection[] = [
   {
     title: "Documents",
     items: [{ href: "/documents", label: "Documents", icon: FolderClosed, permission: "documents.view" }],
+  },
+  {
+    title: "Reports",
+    items: [{ href: "/reports", label: "Reports", icon: BarChart3, permission: "reports.view" }],
   },
   {
     title: "Administration",

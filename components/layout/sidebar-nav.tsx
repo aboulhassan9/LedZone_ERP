@@ -41,6 +41,7 @@ import {
   UserSquare2,
   FolderClosed,
   BarChart3,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,10 @@ type NavSection = {
 const SECTIONS: NavSection[] = [
   {
     title: "Overview",
-    items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/search", label: "Search", icon: Search, permission: "ai_assistant.view" },
+    ],
   },
   {
     title: "Settings",

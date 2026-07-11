@@ -162,6 +162,8 @@ model Currency {
   rentalAgreements             RentalAgreement[]
   invoices                     Invoice[]
   expenses                     Expense[]
+  vehicleMaintenanceRecords    VehicleMaintenanceRecord[]
+  vehicleFuelLogs              VehicleFuelLog[]
 
   @@map("currencies")
 }
@@ -1215,20 +1217,31 @@ model CrewMember {
 }
 
 model Vehicle {
-  id            String    @id @default(uuid()) @db.Uuid
-  name          String
-  plateNumber   String?   @map("plate_number")
-  vehicleType   String?   @map("vehicle_type")
-  capacityNotes String?   @map("capacity_notes")
-  isActive      Boolean   @default(true) @map("is_active")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz
-  createdBy     String?   @map("created_by") @db.Uuid
-  updatedBy     String?   @map("updated_by") @db.Uuid
-  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
-  deletedBy     String?   @map("deleted_by") @db.Uuid
+  id                     String    @id @default(uuid()) @db.Uuid
+  name                   String
+  plateNumber            String?   @map("plate_number")
+  vehicleType            String?   @map("vehicle_type")
+  capacityNotes          String?   @map("capacity_notes")
+  isActive               Boolean   @default(true) @map("is_active")
+  make                   String?
+  model                  String?
+  year                   Int?
+  vin                    String?
+  fuelType               String?   @map("fuel_type")
+  odometerKm             Int?      @map("odometer_km")
+  fleetStatus            String    @default("active") @map("fleet_status")
+  insuranceExpiryDate    DateTime? @map("insurance_expiry_date") @db.Date
+  registrationExpiryDate DateTime? @map("registration_expiry_date") @db.Date
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy              String?   @map("created_by") @db.Uuid
+  updatedBy              String?   @map("updated_by") @db.Uuid
+  deletedAt              DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy              String?   @map("deleted_by") @db.Uuid
 
   resourceAssignments ResourceAssignment[]
+  maintenanceRecords  VehicleMaintenanceRecord[]
+  fuelLogs            VehicleFuelLog[]
 
   @@map("vehicles")
 }
@@ -1609,4 +1622,47 @@ model Expense {
   event    Event?   @relation(fields: [eventId], references: [id])
 
   @@map("expenses")
+}
+
+// ---- Module 9: Fleet ----
+
+model VehicleMaintenanceRecord {
+  id               String   @id @default(uuid()) @db.Uuid
+  vehicleId        String   @map("vehicle_id") @db.Uuid
+  maintenanceType  String   @map("maintenance_type")
+  description      String
+  cost             Decimal? @db.Decimal(14, 2)
+  currencyCode     String?  @map("currency_code")
+  odometerKm       Int?     @map("odometer_km")
+  serviceDate      DateTime @default(now()) @map("service_date") @db.Date
+  nextServiceDate  DateTime? @map("next_service_date") @db.Date
+  performedBy      String?  @map("performed_by")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  createdBy        String?  @map("created_by") @db.Uuid
+  updatedBy        String?  @map("updated_by") @db.Uuid
+
+  vehicle  Vehicle   @relation(fields: [vehicleId], references: [id])
+  currency Currency? @relation(fields: [currencyCode], references: [code])
+
+  @@map("vehicle_maintenance_records")
+}
+
+model VehicleFuelLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  vehicleId    String   @map("vehicle_id") @db.Uuid
+  fuelDate     DateTime @default(now()) @map("fuel_date") @db.Date
+  liters       Decimal  @db.Decimal(10, 2)
+  cost         Decimal  @db.Decimal(14, 2)
+  currencyCode String   @map("currency_code")
+  odometerKm   Int?     @map("odometer_km")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id])
+  currency Currency @relation(fields: [currencyCode], references: [code])
+
+  @@map("vehicle_fuel_logs")
 }
